@@ -86,15 +86,22 @@ setup_issue_environment() {
     # 1. 既存のworktreeがあるかチェック
     mkdir -p worktree
 
-        if [ -d "worktree/issue-${issue_number}" ]; then
+    # git worktreeコマンドで既存のworktreeをチェック
+    if git worktree list | grep -q "worktree/issue-${issue_number}"; then
         echo "既存のworktree/issue-${issue_number}を使用します"
         cd "worktree/issue-${issue_number}"
     else
         echo "新しいworktreeを作成します"
 
-        # 最新のorigin/mainから新しいworktreeを作成
+        # 【重要】必ずリポジトリのrootディレクトリかつmainブランチに移動してからworktreeを作成
+        # 現在worktree内にいる場合は、元のリポジトリディレクトリに戻る
+        cd "$(git worktree list | grep '\[main\]' | awk '{print $1}')"
+
+        # mainブランチに切り替え
         git checkout main
         git pull origin main
+
+        # 最新のorigin/mainから新しいworktreeを作成
         git worktree add "worktree/issue-${issue_number}" -b "issue-${issue_number}"
         cd "worktree/issue-${issue_number}"
     fi
