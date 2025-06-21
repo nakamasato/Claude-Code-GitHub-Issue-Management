@@ -1,6 +1,8 @@
-# 🤖 Claude Code GitHub Issue管理システム
+# 🤖 Claude Code GitHub Issue Management
 
-GitHub Issueを自動管理する、AI駆動の開発ワークフローシステムです
+GitHub Issueを自動管理する、AI駆動の開発ワークフローシステムです。
+
+[Claude Code エージェント通信システム](https://github.com/Akira-Papa/Claude-Code-Communication)にヒントを得て、もともと手元でやっていたGitHub Issueを作ってそれをClaude Codeに解決してもらうやり方をAI Workerで実行できるようにしました。
 
 ## 📌 これは何？
 
@@ -14,6 +16,125 @@ GitHub Issueを自動管理する、AI駆動の開発ワークフローシステ
 - 🚀 Git worktreeを使った並列開発
 - 📝 自動PR作成とIssue進捗コメント
 - ⚡ 複数Issue同時処理（最大3件）
+
+## Architecture
+
+```mermaid
+graph TB
+    %% GitHub Integration
+    GitHub[🐙 GitHub Repository]
+    Issues[📋 GitHub Issues]
+    PRs[🔀 Pull Requests]
+
+    %% AI Agents
+    IssueManager[🎯 Issue Manager<br/>GitHub Issue監視・調整]
+    Worker1[👷 Worker1<br/>Issue解決専門]
+    Worker2[👷 Worker2<br/>Issue解決専門]
+    Worker3[👷 Worker3<br/>Issue解決専門]
+
+    %% Development Environment
+    MainBranch[🌳 main branch]
+    Worktree1[🌿 worktree-1<br/>独立作業環境]
+    Worktree2[🌿 worktree-2<br/>独立作業環境]
+    Worktree3[🌿 worktree-3<br/>独立作業環境]
+
+    %% Terminal Environment
+    Tmux[📺 tmux session<br/>4分割画面]
+    ClaudeCLI[🤖 Claude CLI<br/>--dangerously-skip-permissions]
+
+    %% Workflow Process
+    NewIssue[🆕 新しいIssue作成]
+    IssueMonitoring[👁️ Issue監視]
+    WorkerAssign[📋 Worker自動アサイン]
+    Analysis[🔍 Issue内容分析]
+    Implementation[⚙️ 実装・テスト]
+    PRCreation[📝 PR作成]
+    QualityCheck[✅ 品質確認]
+    Merge[🎯 マージ承認]
+
+    %% Connections - GitHub Integration
+    GitHub --> Issues
+    GitHub --> PRs
+    Issues --> NewIssue
+
+    %% Connections - Issue Flow
+    NewIssue --> IssueMonitoring
+    IssueMonitoring --> IssueManager
+    IssueManager --> WorkerAssign
+
+    %% Connections - Worker Assignment
+    WorkerAssign --> Worker1
+    WorkerAssign --> Worker2
+    WorkerAssign --> Worker3
+
+    %% Connections - Development Process
+    Worker1 --> Analysis
+    Worker2 --> Analysis
+    Worker3 --> Analysis
+    Analysis --> Implementation
+    Implementation --> PRCreation
+    PRCreation --> PRs
+    PRCreation --> QualityCheck
+    QualityCheck --> IssueManager
+    IssueManager --> Merge
+    Merge --> GitHub
+
+    %% Connections - Git Worktree
+    MainBranch --> Worktree1
+    MainBranch --> Worktree2
+    MainBranch --> Worktree3
+    Worker1 -.-> Worktree1
+    Worker2 -.-> Worktree2
+    Worker3 -.-> Worktree3
+
+    %% Connections - Terminal Environment
+    Tmux --> IssueManager
+    Tmux --> Worker1
+    Tmux --> Worker2
+    Tmux --> Worker3
+    ClaudeCLI --> IssueManager
+    ClaudeCLI --> Worker1
+    ClaudeCLI --> Worker2
+    ClaudeCLI --> Worker3
+
+    %% Styling
+    classDef aiAgent fill:#e1f5fe,stroke:#0277bd,stroke-width:2px,color:#000
+    classDef github fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
+    classDef worktree fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px,color:#000
+    classDef process fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#000
+    classDef terminal fill:#fce4ec,stroke:#c2185b,stroke-width:2px,color:#000
+
+    class IssueManager,Worker1,Worker2,Worker3 aiAgent
+    class GitHub,Issues,PRs github
+    class MainBranch,Worktree1,Worktree2,Worktree3 worktree
+    class NewIssue,IssueMonitoring,WorkerAssign,Analysis,Implementation,PRCreation,QualityCheck,Merge process
+    class Tmux,ClaudeCLI terminal
+
+    %% Subgraphs for better organization
+    subgraph "🏢 AI Agent Team"
+        IssueManager
+        Worker1
+        Worker2
+        Worker3
+    end
+
+    subgraph "🌳 Git Worktree Environment"
+        MainBranch
+        Worktree1
+        Worktree2
+        Worktree3
+    end
+
+    subgraph "📺 Terminal Environment"
+        Tmux
+        ClaudeCLI
+    end
+
+    subgraph "🔄 Automated Workflow"
+        direction LR
+        NewIssue --> IssueMonitoring --> WorkerAssign --> Analysis --> Implementation --> PRCreation --> QualityCheck --> Merge
+    end
+```
 
 ## 🎬 5分で動かしてみよう！
 
@@ -37,7 +158,7 @@ GitHub Issueを自動管理する、AI駆動の開発ワークフローシステ
 
 #### 1️⃣ ダウンロード（30秒）
 ```bash
-git clone https://github.com/nakamasato/Claude-Code-Communication.git
+gh repo clone nakamasato/Claude-Code-Communication
 cd Claude-Code-Communication
 ```
 
@@ -253,46 +374,15 @@ project-root/
 └── .gitignore             # worktree/が自動追加される
 ```
 
+> [!NOTE]
+> `setup.sh`で`worktree/`を`.gitignore`に追加します。
+
 ### Worktreeライフサイクル
 
-#### 1. **作成** (Worker環境セットアップ時)
-```bash
-# Worker環境セットアップコマンド
-mkdir -p worktree
-git worktree add worktree/issue-123 -b issue-123
-cd worktree/issue-123
-
-# 依存関係インストール
-npm install
-```
-
-#### 2. **開発** (Worker作業中)
-```bash
-# Issue解決のための実装作業
-# worktree/issue-123/ 内で完全に独立した開発環境
-# - 独自のnode_modules
-# - 独自のブランチ (issue-123)
-# - 独自の作業ファイル
-```
-
-#### 3. **確認** (Issue Manager品質チェック)
-```bash
-# Issue Managerがローカル確認を実行する場合
-worktree_dir=$(git worktree list | grep "issue-123" | awk '{print $1}')
-cd "$worktree_dir"  # → worktree/issue-123/
-
-# local-verification.mdの手順に従って動作確認
-npm run dev
-# localhost:3000でテスト
-```
-
-#### 4. **削除** (Issue完了時)
-```bash
-# Worker完了報告時に自動クリーンアップ
-cd ../../  # プロジェクトルートに戻る
-git worktree remove worktree/issue-123 --force
-rm -rf worktree/issue-123
-```
+1. **作成**: `git worktree add worktree/issue-XXX -b issue-XXX`
+2. **開発**: 独立した環境でIssue解決作業
+3. **確認**: Issue Managerによる品質チェック
+4. **削除**: `git worktree remove worktree/issue-XXX --force`
 
 ### セキュリティとメリット
 
@@ -311,23 +401,7 @@ rm -rf worktree/issue-123
 - **ディレクトリ作成**: セットアップ時の自動作成
 - **自動クリーンアップ**: Issue完了時の自動削除
 
-### 実際の使用例
 
-```bash
-# Issue #123, #456, #789が同時進行の場合
-git worktree list
-
-# 出力例:
-# /path/to/project                    (main)
-# /path/to/project/worktree/issue-123 [issue-123]
-# /path/to/project/worktree/issue-456 [issue-456] 
-# /path/to/project/worktree/issue-789 [issue-789]
-
-# 各Workerは独立した環境で作業
-Worker1: worktree/issue-123/ でReact新機能開発
-Worker2: worktree/issue-456/ でAPI修正
-Worker3: worktree/issue-789/ でテスト追加
-```
 
 ### トラブルシューティング
 
@@ -339,11 +413,7 @@ git worktree remove worktree/issue-XXX --force
 rm -rf worktree/issue-XXX
 ```
 
-#### .gitignoreの手動更新
-```bash
-# worktree/エントリが無い場合
-echo "worktree/" >> .gitignore
-```
+
 
 ## 🔧 困ったときは
 
@@ -478,13 +548,6 @@ Description:
 ```
 ログイン機能作って
 ```
-
-### カスタマイズ方法
-
-**新しいWorkerを追加：**
-1. `instructions/worker4.md`を作成
-2. `setup.sh`を編集してペインを追加
-3. `agent-send.sh`にworker4のマッピングを追加
 
 **Issue監視間隔を変更：**
 ```bash
