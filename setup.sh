@@ -27,6 +27,24 @@ mkdir -p ./tmp/worker-status
 rm -f ./tmp/worker*_done.txt 2>/dev/null && log_info "既存の完了ファイルをクリア" || log_info "完了ファイルは存在しませんでした"
 rm -f ./tmp/worker-status/worker*_busy.txt 2>/dev/null && log_info "既存のWorker状況ファイルをクリア" || log_info "Worker状況ファイルは存在しませんでした"
 
+# .gitignoreにworktreeエントリを追加
+log_info ".gitignoreにworktreeエントリを追加中..."
+if [ ! -f ".gitignore" ]; then
+    touch .gitignore
+    log_info ".gitignoreファイルを作成しました"
+fi
+
+if ! grep -q "^worktree/$" .gitignore; then
+    echo "worktree/" >> .gitignore
+    log_info ".gitignoreにworktree/を追加しました"
+else
+    log_info ".gitignoreに既にworktree/が存在します"
+fi
+
+# worktreeディレクトリの準備
+mkdir -p worktree
+log_info "worktreeディレクトリを作成しました"
+
 log_success "✅ クリーンアップ完了"
 echo ""
 
@@ -49,10 +67,10 @@ PANE_TITLES=("issue-manager" "worker1" "worker2" "worker3")
 
 for i in {0..3}; do
     tmux select-pane -t "multiagent:0.$i" -T "${PANE_TITLES[$i]}"
-    
+
     # 作業ディレクトリ設定
     tmux send-keys -t "multiagent:0.$i" "cd $(pwd)" C-m
-    
+
     # カラープロンプト設定
     if [ $i -eq 0 ]; then
         # issue-manager: 緑色
@@ -61,7 +79,7 @@ for i in {0..3}; do
         # workers: 青色
         tmux send-keys -t "multiagent:0.$i" "export PS1='(\[\033[1;34m\]${PANE_TITLES[$i]}\[\033[0m\]) \[\033[1;32m\]\w\[\033[0m\]\$ '" C-m
     fi
-    
+
     # ウェルカムメッセージ
     tmux send-keys -t "multiagent:0.$i" "echo '=== ${PANE_TITLES[$i]} エージェント ==='" C-m
 done
@@ -111,4 +129,4 @@ echo "  4. 🎯 システム起動: Issue Managerに「あなたはissue-manager
 echo ""
 echo "  5. 📋 GitHub設定確認:"
 echo "     gh auth status  # GitHub CLI認証確認"
-echo "     gh repo view     # リポジトリ確認" 
+echo "     gh repo view     # リポジトリ確認"

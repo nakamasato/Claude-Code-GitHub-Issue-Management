@@ -90,8 +90,9 @@ Issue #${issue_number}: ${issue_title}
    \`\`\`bash
    git checkout main
    git pull origin main
-   git worktree add ../$(basename $(pwd))-worktree-issue-${issue_number} -b issue-${issue_number}
-   cd ../$(basename $(pwd))-worktree-issue-${issue_number}
+   mkdir -p worktree
+   git worktree add worktree/issue-${issue_number} -b issue-${issue_number}
+   cd worktree/issue-${issue_number}
    \`\`\`
 
 2. Issue詳細確認
@@ -125,7 +126,56 @@ check_worker_availability() {
 ```
 
 ## Worker報告処理
-### 1. 完了報告受信処理
+
+### Workerからの報告受信フロー
+
+Issue Managerは以下の方法でWorkerからの報告を受信します：
+
+#### 1. **リアルタイム報告受信**
+Workerから`agent-send.sh`でメッセージが送信されると、Issue Manager画面に直接表示されます。
+
+#### 2. **報告の種類**
+- **課題報告**: 実装中に問題が発生した場合
+- **進捗報告**: 定期的な進捗アップデート（GitHub Issueコメント経由）
+- **完了報告**: Issue解決とPR作成完了時
+
+### 1. 課題報告受信処理
+```bash
+# Workerから課題報告を受信した時の対応
+handle_worker_issue_report() {
+    local worker_num="$1"
+    local issue_number="$2"
+    local problem_description="$3"
+    
+    echo "Worker${worker_num}からIssue #${issue_number}の課題報告を受信"
+    echo "問題内容: ${problem_description}"
+    
+    # GitHub Issueに課題を記録
+    gh issue comment $issue_number --body "## ⚠️ 実装中の課題報告 - Worker${worker_num}
+
+**発生した問題**:
+${problem_description}
+
+**対応状況**: Issue Manager確認中
+
+**次のステップ**: 解決策を検討し、Workerに指示します。
+
+---
+*Issue Manager による自動記録*"
+    
+    # Workerに対応方針を返信（手動または自動）
+    echo "Worker${worker_num}への対応方針を検討してください："
+    echo "1. 技術的なアドバイスを提供"
+    echo "2. 別のアプローチを提案"
+    echo "3. 他のWorkerに再アサイン"
+    echo "4. Issue要件の明確化"
+    
+    # 対応例（手動で実行）
+    # ./agent-send.sh worker${worker_num} "課題について以下の解決策を試してください：[具体的な指示]"
+}
+```
+
+### 2. 完了報告受信処理
 ```bash
 # Workerからの完了報告を受信した時の処理
 handle_worker_completion() {
@@ -156,10 +206,48 @@ handle_worker_completion() {
 - 次のアクション: [承認/修正依頼/追加作業]
 
 詳細な確認結果は後ほど報告します。"
+        
+        # ローカル動作確認の実行（オプション）
+        read -p "ローカル動作確認を実行しますか？ (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            local_verification $issue_number
+        fi
     fi
     
     # Worker状況ファイル削除（作業完了）
     rm -f ./tmp/worker-status/worker${worker_num}_busy.txt
+    
+    # Worktreeクリーンアップ（必要に応じて）
+    if [ -d "worktree/issue-${issue_number}" ]; then
+        echo "worktree/issue-${issue_number}をクリーンアップ中..."
+        git worktree remove worktree/issue-${issue_number} --force 2>/dev/null || true
+        rm -rf worktree/issue-${issue_number} 2>/dev/null || true
+    fi
+}
+```
+
+### 3. 進捗モニタリング
+```bash
+# Worker進捗の定期確認
+monitor_worker_progress() {
+    echo "=== Worker進捗確認 ==="
+    
+    for worker_num in 1 2 3; do
+        if [ -f "./tmp/worker-status/worker${worker_num}_busy.txt" ]; then
+            local issue_info=$(cat "./tmp/worker-status/worker${worker_num}_busy.txt")
+            echo "Worker${worker_num}: 作業中 - ${issue_info}"
+            
+            # GitHub Issueの最新コメントを確認
+            local issue_number=$(echo "$issue_info" | grep -o '#[0-9]\+' | cut -c2-)
+            if [ -n "$issue_number" ]; then
+                echo "  最新のIssueコメント:"
+                gh issue view $issue_number --json comments --jq '.comments[-1].body' | head -3
+            fi
+        else
+            echo "Worker${worker_num}: 利用可能"
+        fi
+    done
 }
 ```
 

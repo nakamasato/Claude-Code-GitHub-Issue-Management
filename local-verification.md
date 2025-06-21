@@ -13,8 +13,9 @@ Issue Managerがlocal_verification関数を実行する際に、このファイ�
 ### 1. 開発環境準備
 ```bash
 # ブランチに移動（Issue Managerが自動実行）
-git checkout issue-{issue_number}
-git pull origin issue-{issue_number}
+mkdir -p worktree
+git worktree add worktree/issue-{issue_number} -b issue-{issue_number}
+cd worktree/issue-{issue_number}
 
 # 依存関係インストール
 npm install

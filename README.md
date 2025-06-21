@@ -144,8 +144,9 @@ Issue #123: Add dark mode toggle feature
 1. Git環境の準備
    git checkout main
    git pull origin main
-   git worktree add ../$(basename $(pwd))-worktree-issue-123 -b issue-123
-   cd ../$(basename $(pwd))-worktree-issue-123
+   mkdir -p worktree
+   git worktree add worktree/issue-123 -b issue-123
+   cd worktree/issue-123
 
 2. Issue詳細確認
    gh issue view 123

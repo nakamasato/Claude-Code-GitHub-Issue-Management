@@ -88,8 +88,9 @@ setup_issue_environment() {
     git pull origin main
     
     # 2. Worktree作成
-    git worktree add "../$(basename $(pwd))-worktree-issue-${issue_number}" -b "issue-${issue_number}"
-    cd "../$(basename $(pwd))-worktree-issue-${issue_number}"
+    mkdir -p worktree
+    git worktree add "worktree/issue-${issue_number}" -b "issue-${issue_number}"
+    cd "worktree/issue-${issue_number}"
     
     # 3. 依存関係インストール
     npm install  # または yarn install、pip install等
@@ -200,6 +201,12 @@ report_completion_to_manager() {
     
     # Worker状況ファイル削除
     rm -f ./tmp/worker-status/worker${WORKER_NUM}_busy.txt
+    
+    # Worktreeクリーンアップ
+    echo "worktree/issue-${issue_number}をクリーンアップ中..."
+    cd ../../  # worktreeディレクトリから元のディレクトリに戻る
+    git worktree remove worktree/issue-${issue_number} --force 2>/dev/null || true
+    rm -rf worktree/issue-${issue_number} 2>/dev/null || true
     
     # Issue Manager への完了報告
     ./agent-send.sh issue-manager "【Issue #${issue_number} 完了報告】Worker${WORKER_NUM}
