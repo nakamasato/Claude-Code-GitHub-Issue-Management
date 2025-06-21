@@ -11,6 +11,16 @@ GitHub Issueを常に監視し、効率的にWorkerに作業をアサインし�
 5. **進捗管理**: Workerからの報告を受けて、IssueとPRの状況を確認
 6. **品質管理**: 必要に応じてローカル環境での動作確認を実施
 
+## Worker設定
+### Worker数の設定
+```bash
+# Worker数を設定（デフォルト: 3）
+WORKER_COUNT=${WORKER_COUNT:-3}
+
+# Worker数確認
+echo "設定されたWorker数: $WORKER_COUNT"
+```
+
 ## Issue監視とWorker管理
 ### 1. GitHub Issue確認コマンド
 ```bash
@@ -54,7 +64,7 @@ assign_issue() {
     local issue_title="$2"
 
     # 利用可能なWorkerを探す
-    for worker_num in 1 2 3; do
+    for ((worker_num=1; worker_num<=WORKER_COUNT; worker_num++)); do
         if [ ! -f ./tmp/worker-status/worker${worker_num}_busy.txt ]; then
             echo "Issue #${issue_number}を@meにAssign"
 
@@ -97,16 +107,22 @@ Issue #${issue_number}: ${issue_title}
    \`\`\`bash
    mkdir -p worktree
 
-      # 既存のworktreeがあるかチェック
-   if [ -d "worktree/issue-${issue_number}" ]; then
+   # git worktreeコマンドで既存のworktreeをチェック
+   if git worktree list | grep -q "worktree/issue-${issue_number}"; then
      echo "既存のworktree/issue-${issue_number}を使用します"
      cd worktree/issue-${issue_number}
    else
      echo "新しいworktreeを作成します"
 
-     # 最新のorigin/mainから新しいworktreeを作成
+     # 【重要】必ずリポジトリのrootディレクトリかつmainブランチに移動してからworktreeを作成
+     # 現在worktree内にいる場合は、元のリポジトリディレクトリに戻る
+     cd "$(git worktree list | grep '\[main\]' | awk '{print $1}')"
+
+     # mainブランチに切り替え
      git checkout main
      git pull origin main
+
+     # 最新のorigin/mainから新しいworktreeを作成
      git worktree add worktree/issue-${issue_number} -b issue-${issue_number}
      cd worktree/issue-${issue_number}
    fi
@@ -250,7 +266,7 @@ handle_worker_completion() {
 monitor_worker_progress() {
     echo "=== Worker進捗確認 ==="
 
-    for worker_num in 1 2 3; do
+    for ((worker_num=1; worker_num<=WORKER_COUNT; worker_num++)); do
         if [ -f "./tmp/worker-status/worker${worker_num}_busy.txt" ]; then
             local issue_info=$(cat "./tmp/worker-status/worker${worker_num}_busy.txt")
             echo "Worker${worker_num}: 作業中 - ${issue_info}"
@@ -414,6 +430,8 @@ monitor_issues_with_filter() {
                 "Body preview: " + (.body | .[0:200] + (if length > 200 then "..." else "" end))
             '
 
+            # TODO: PR存在確認
+
             # 割り当て確認
             echo ""
             read -p "Issue #${issue_num} を自分にアサインしますか？ (y/N): " -n 1 -r
@@ -440,7 +458,7 @@ monitor_issues_with_filter() {
 # Worker負荷確認
 check_worker_load() {
     echo "=== Worker負荷状況 ==="
-    for worker_num in 1 2 3; do
+    for ((worker_num=1; worker_num<=WORKER_COUNT; worker_num++)); do
         if [ -f ./tmp/worker-status/worker${worker_num}_busy.txt ]; then
             echo "Worker${worker_num}: 作業中 - $(cat ./tmp/worker-status/worker${worker_num}_busy.txt)"
         else
@@ -462,59 +480,6 @@ monitor_issues_with_filter "no:assignee"
 
 # 3. 自分のバグ修正タスクを確認したい場合
 monitor_issues_with_filter "assignee:@me label:bug"
-
-# 4. 未割り当てのバグを探したい場合
-monitor_issues_with_filter "no:assignee label:bug"
-
-# 5. ヘルプが必要なタスクを探したい場合
-monitor_issues_with_filter "no:assignee label:\"help wanted\""
-
-# 6. 新機能開発に集中したい場合
-monitor_issues_with_filter "no:assignee label:enhancement"
-
-# 7. ドキュメント関連のタスクを探したい場合
-monitor_issues_with_filter "no:assignee label:documentation"
-
-# 8. 初心者向けタスクを探したい場合
-monitor_issues_with_filter "no:assignee label:\"good first issue\""
-
-# 9. 質問への回答を探したい場合
-monitor_issues_with_filter "no:assignee label:question"
-
-# 10. 今週作成されたIssueのみを確認したい場合
-monitor_issues_with_filter "created:>$(date -d '1 week ago' '+%Y-%m-%d')"
-
-# 11. 特定のキーワードを含むIssueを確認したい場合
-monitor_issues_with_filter "authentication in:title"
-monitor_issues_with_filter "API in:body"
-
-# 12. 複数の条件を組み合わせたい場合
-monitor_issues_with_filter "no:assignee label:bug label:\"help wanted\""
-```
-
-### 定期的な監視スケジュール例
-```bash
-# 朝の作業開始時：自分の作業進捗確認（デフォルト）
-monitor_issues_with_filter ""
-
-# 作業の合間：新しいヘルプ募集タスクをチェック
-monitor_issues_with_filter "no:assignee label:\"help wanted\""
-
-# 午前中：バグ修正に集中
-monitor_issues_with_filter "no:assignee label:bug"
-
-# 午後：新機能開発
-monitor_issues_with_filter "no:assignee label:enhancement"
-
-# 空き時間：ドキュメント作成や質問回答
-monitor_issues_with_filter "no:assignee label:documentation"
-monitor_issues_with_filter "no:assignee label:question"
-
-# 初心者歓迎のタスクを探すとき
-monitor_issues_with_filter "no:assignee label:\"good first issue\""
-
-# 夕方：自分の作業完了状況を再確認
-monitor_issues_with_filter "assignee:@me"
 ```
 
 ## 重要なポイント

@@ -164,9 +164,11 @@ cd Claude-Code-Communication
 
 #### 2️⃣ 環境構築（1分）
 ```bash
-./setup.sh
+./setup.sh          # デフォルト: 3 workers
+# または
+./setup.sh 5        # 5 workers
 ```
-これでバックグラウンドに4つのターミナル画面が準備されます！
+これでバックグラウンドに指定した数のターミナル画面が準備されます！
 
 #### 3️⃣ Issue Manager画面を開いてAI起動（2分）
 

@@ -2,11 +2,11 @@
 
 ## エージェント構成
 - **issue-manager** (multiagent:0.0): GitHub Issue管理者
-- **worker1,2,3** (multiagent:0.1-3): Issue解決担当
+- **worker1-N** (multiagent:0.1-N): Issue解決担当（Nはsetup.shで指定、デフォルト3）
 
 ## あなたの役割
 - **issue-manager**: @instructions/issue-manager.md
-- **worker1,2,3**: @instructions/worker.md
+- **worker1-N**: @instructions/worker.md
 
 ## メッセージ送信
 ```bash

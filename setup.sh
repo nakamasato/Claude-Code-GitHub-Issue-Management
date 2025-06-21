@@ -4,6 +4,18 @@
 
 set -e  # エラー時に停止
 
+# Worker数の設定（デフォルト: 3）
+WORKER_COUNT=${1:-3}
+
+# Worker数の妥当性チェック
+if ! [[ "$WORKER_COUNT" =~ ^[1-9][0-9]*$ ]] || [ "$WORKER_COUNT" -gt 10 ]; then
+    echo "❌ エラー: Worker数は1-10の範囲で指定してください"
+    echo "使用方法: $0 [worker数]"
+    echo "例: $0 3  # 3つのWorkerを作成（デフォルト）"
+    echo "例: $0 5  # 5つのWorkerを作成"
+    exit 1
+fi
+
 # 色付きログ関数
 log_info() {
     echo -e "\033[1;32m[INFO]\033[0m $1"
@@ -15,6 +27,7 @@ log_success() {
 
 echo "🤖 GitHub Issue Management System 環境構築"
 echo "============================================="
+echo "📊 設定: Worker数 = $WORKER_COUNT"
 echo ""
 
 # STEP 1: 既存セッションクリーンアップ
@@ -48,40 +61,73 @@ log_info "worktreeディレクトリを作成しました"
 log_success "✅ クリーンアップ完了"
 echo ""
 
-# STEP 2: multiagentセッション作成（4ペイン：issue-manager + worker1,2,3）
-log_info "📺 multiagentセッション作成開始 (4ペイン)..."
+# STEP 2: multiagentセッション作成（動的ペイン数：issue-manager + workers）
+TOTAL_PANES=$((WORKER_COUNT + 1))
+log_info "📺 multiagentセッション作成開始 (${TOTAL_PANES}ペイン: issue-manager + ${WORKER_COUNT}workers)..."
 
 # 最初のペイン作成
 tmux new-session -d -s multiagent -n "agents"
 
-# 2x2グリッド作成（合計4ペイン）
-tmux split-window -h -t "multiagent:0"      # 水平分割（左右）
-tmux select-pane -t "multiagent:0.0"
-tmux split-window -v                        # 左側を垂直分割
-tmux select-pane -t "multiagent:0.2"
-tmux split-window -v                        # 右側を垂直分割
+# 動的なペイン分割（ワーカー数に応じて）
+if [ "$WORKER_COUNT" -eq 1 ]; then
+    # 1 worker: 左右分割
+    tmux split-window -h -t "multiagent:0"
+elif [ "$WORKER_COUNT" -eq 2 ]; then
+    # 2 workers: 上下分割後、右側を左右分割
+    tmux split-window -h -t "multiagent:0"
+    tmux select-pane -t "multiagent:0.1"
+    tmux split-window -v
+elif [ "$WORKER_COUNT" -eq 3 ]; then
+    # 3 workers: 2x2グリッド
+    tmux split-window -h -t "multiagent:0"
+    tmux select-pane -t "multiagent:0.0"
+    tmux split-window -v
+    tmux select-pane -t "multiagent:0.2"
+    tmux split-window -v
+else
+    # 4+ workers: 左右分割後、両側を縦分割
+    tmux split-window -h -t "multiagent:0"
+
+    # 左側を縦分割（issue-manager + 最初のworker）
+    tmux select-pane -t "multiagent:0.0"
+    tmux split-window -v
+
+    # 右側を縦分割（残りのworkers）
+    tmux select-pane -t "multiagent:0.2"
+    for ((i=3; i<=WORKER_COUNT; i++)); do
+        tmux split-window -v
+    done
+fi
 
 # ペインタイトル設定
 log_info "ペインタイトル設定中..."
-PANE_TITLES=("issue-manager" "worker1" "worker2" "worker3")
 
-for i in {0..3}; do
-    tmux select-pane -t "multiagent:0.$i" -T "${PANE_TITLES[$i]}"
+# issue-manager
+tmux select-pane -t "multiagent:0.0" -T "issue-manager"
 
+# workers
+for ((i=1; i<=WORKER_COUNT; i++)); do
+    tmux select-pane -t "multiagent:0.$i" -T "worker$i"
+done
+
+# 各ペインの初期設定
+for ((i=0; i<=WORKER_COUNT; i++)); do
     # 作業ディレクトリ設定
     tmux send-keys -t "multiagent:0.$i" "cd $(pwd)" C-m
 
-    # カラープロンプト設定
+    # ペインタイトル取得
     if [ $i -eq 0 ]; then
+        PANE_TITLE="issue-manager"
         # issue-manager: 緑色
-        tmux send-keys -t "multiagent:0.$i" "export PS1='(\[\033[1;32m\]${PANE_TITLES[$i]}\[\033[0m\]) \[\033[1;32m\]\w\[\033[0m\]\$ '" C-m
+        tmux send-keys -t "multiagent:0.$i" "export PS1='(\[\033[1;32m\]${PANE_TITLE}\[\033[0m\]) \[\033[1;32m\]\w\[\033[0m\]\$ '" C-m
     else
+        PANE_TITLE="worker$i"
         # workers: 青色
-        tmux send-keys -t "multiagent:0.$i" "export PS1='(\[\033[1;34m\]${PANE_TITLES[$i]}\[\033[0m\]) \[\033[1;32m\]\w\[\033[0m\]\$ '" C-m
+        tmux send-keys -t "multiagent:0.$i" "export PS1='(\[\033[1;34m\]${PANE_TITLE}\[\033[0m\]) \[\033[1;32m\]\w\[\033[0m\]\$ '" C-m
     fi
 
     # ウェルカムメッセージ
-    tmux send-keys -t "multiagent:0.$i" "echo '=== ${PANE_TITLES[$i]} エージェント ==='" C-m
+    tmux send-keys -t "multiagent:0.$i" "echo '=== ${PANE_TITLE} エージェント ==='" C-m
 done
 
 log_success "✅ multiagentセッション作成完了"
@@ -101,28 +147,28 @@ echo ""
 
 # ペイン構成表示
 echo "📋 ペイン構成:"
-echo "  multiagentセッション（4ペイン）:"
+echo "  multiagentセッション（${TOTAL_PANES}ペイン）:"
 echo "    Pane 0: issue-manager (GitHub Issue管理者)"
-echo "    Pane 1: worker1       (Issue解決担当者A)"
-echo "    Pane 2: worker2       (Issue解決担当者B)"
-echo "    Pane 3: worker3       (Issue解決担当者C)"
+for ((i=1; i<=WORKER_COUNT; i++)); do
+    echo "    Pane $i: worker$i       (Issue解決担当者$(printf '\x$(printf %x $((i+64)))'))"
+done
 
 echo ""
 log_success "🎉 GitHub Issue管理システム環境セットアップ完了！"
 echo ""
 echo "📋 次のステップ:"
-echo "  1. 🔗 セッションアタッチ:"
-echo "     tmux attach-session -t multiagent   # GitHub Issue管理システム確認"
-echo ""
-echo "  2. 🤖 Claude Code起動:"
+echo "  1. 🤖 Claude Code起動:"
 echo "     # Issue Manager起動"
 echo "     tmux send-keys -t multiagent:0.0 'claude --dangerously-skip-permissions' C-m"
 echo "     # Worker一括起動"
-echo "     for i in {1..3}; do tmux send-keys -t multiagent:0.\$i 'claude --dangerously-skip-permissions' C-m; done"
+echo "     for i in {1..$WORKER_COUNT}; do tmux send-keys -t multiagent:0.\$i 'claude --dangerously-skip-permissions' C-m; done"
+echo ""
+echo "  2. 🔗 セッションアタッチ:"
+echo "     tmux attach-session -t multiagent   # GitHub Issue管理システム確認"
 echo ""
 echo "  3. 📜 指示書確認:"
 echo "     Issue Manager: instructions/issue-manager.md"
-echo "     worker1,2,3: instructions/worker.md"
+echo "     worker1-${WORKER_COUNT}: instructions/worker.md"
 echo "     システム構造: CLAUDE.md"
 echo ""
 echo "  4. 🎯 システム起動: Issue Managerに「あなたはissue-managerです。指示書に従ってGitHub Issueの監視を開始してください」と入力"
