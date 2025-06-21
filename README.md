@@ -207,9 +207,14 @@ tmux attach-session -t multiagent
 
 #### 6️⃣ GitHub Issue管理開始（30秒）
 
-Issue Manager画面で入力：
+Issue Manager画面で入力(defaultでは assignee:@me のissueが対象)：
 ```
 あなたはissue-managerです。指示書に従ってGitHub Issueの監視を開始してください。
+```
+
+対象Issueを絞る場合:
+```
+あなたはissue-managerです。指示書に従ってGitHub Issueの監視を開始してください。対象とするissueの条件は、未アサイン且つbugラベルのissueです。
 ```
 
 **すると自動的に：**

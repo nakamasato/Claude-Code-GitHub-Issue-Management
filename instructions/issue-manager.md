@@ -18,7 +18,7 @@ GitHub Issueを常に監視し、効率的にWorkerに作業をアサインし�
 gh issue list --state open --json number,title,assignees,labels
 
 # オープンかつ@meにassignされているissue
-gh issue list --state open --assignee "@me" --json number,title,assignees,labels
+gh issue list --state open --search "assignee:@me" --json number,title,assignees,labels
 
 # オープンかつfilter条件に合うissue
 gh issue list --state open --search "[search query]"
@@ -27,23 +27,7 @@ gh issue list --state open --search "[search query]"
 gh issue view [issue_number] --json title,body,assignees,labels,comments
 
 # フィルタ条件の詳細な使用例
-# ラベルベースフィルタ
 gh issue list --state open --search "label:bug"
-gh issue list --state open --search "label:enhancement"
-gh issue list --state open --search "label:documentation"
-gh issue list --state open --search "label:\"good first issue\""
-
-# 複合条件フィルタ
-gh issue list --state open --search "no:assignee label:bug"
-gh issue list --state open --search "no:assignee label:enhancement"
-gh issue list --state open --search "label:bug label:\"help wanted\""
-
-# 日付ベースフィルタ
-gh issue list --state open --search "created:>2024-01-01"
-gh issue list --state open --search "updated:>2024-01-01"
-
-# テキスト検索フィルタ
-gh issue list --state open --search "login in:title"
 gh issue list --state open --search "API in:body"
 ```
 
@@ -76,9 +60,6 @@ assign_issue() {
 
             # GitHub上で現在ログインしているユーザーにAssign
             gh issue edit $issue_number --add-assignee @me
-
-            # ラベル追加
-            gh issue edit $issue_number --add-label "assigned,in-progress"
 
             # Worker状況ファイル作成
             echo "Issue #${issue_number}: ${issue_title}" > ./tmp/worker-status/worker${worker_num}_busy.txt
