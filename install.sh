@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 🚀 GitHub Issue Management System - 自動インストールスクリプト
-# 使用方法: curl -sSL https://raw.githubusercontent.com/nakamasato/Claude-Code-Communication/refactor/github-issue-management-system/install.sh | bash
+# 使用方法: curl -sSL https://raw.githubusercontent.com/nakamasato/Claude-Code-Communication/main/install.sh | bash
 
 set -e
 
@@ -100,7 +100,7 @@ select_installation_method() {
 # ファイルダウンロード
 download_files() {
     local target_dir="$1"
-    local base_url="https://raw.githubusercontent.com/nakamasato/Claude-Code-Communication/refactor/github-issue-management-system"
+    local base_url="https://raw.githubusercontent.com/nakamasato/Claude-Code-Communication/main"
 
     log_info "必要ファイルをダウンロード中..."
 
@@ -310,7 +310,7 @@ main() {
     log_success "🎉 GitHub Issue Management System インストール完了！"
     echo ""
     echo "📚 詳細な使用方法:"
-    echo "   https://github.com/nakamasato/Claude-Code-Communication/blob/refactor/github-issue-management-system/INSTALLATION.md"
+    echo "   https://github.com/nakamasato/Claude-Code-Communication/blob/main/INSTALLATION.md"
 }
 
 # スクリプト実行

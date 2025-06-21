@@ -26,11 +26,11 @@ cd /path/to/your-repo
 mkdir -p .claude-issue-manager/instructions
 
 # 必要なファイルをコピー
-curl -O https://raw.githubusercontent.com/nakamasato/Claude-Code-Communication/refactor/github-issue-management-system/.claude-issue-manager/instructions/issue-manager.md
-curl -O https://raw.githubusercontent.com/nakamasato/Claude-Code-Communication/refactor/github-issue-management-system/.claude-issue-manager/instructions/worker.md
-curl -O https://raw.githubusercontent.com/nakamasato/Claude-Code-Communication/refactor/github-issue-management-system/.claude-issue-manager/agent-send.sh
-curl -O https://raw.githubusercontent.com/nakamasato/Claude-Code-Communication/refactor/github-issue-management-system/.claude-issue-manager/setup.sh
-curl -O https://raw.githubusercontent.com/nakamasato/Claude-Code-Communication/refactor/github-issue-management-system/.claude-issue-manager/local-verification.md
+curl -O https://raw.githubusercontent.com/nakamasato/Claude-Code-Communication/main/.claude-issue-manager/instructions/issue-manager.md
+curl -O https://raw.githubusercontent.com/nakamasato/Claude-Code-Communication/main/.claude-issue-manager/instructions/worker.md
+curl -O https://raw.githubusercontent.com/nakamasato/Claude-Code-Communication/main/.claude-issue-manager/agent-send.sh
+curl -O https://raw.githubusercontent.com/nakamasato/Claude-Code-Communication/main/.claude-issue-manager/setup.sh
+curl -O https://raw.githubusercontent.com/nakamasato/Claude-Code-Communication/main/.claude-issue-manager/local-verification.md
 ```
 
 ### 手順2: CLAUDE-issue.md作成
