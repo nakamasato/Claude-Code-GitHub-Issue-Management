@@ -83,19 +83,26 @@ setup_issue_environment() {
 
     echo "=== Issue #${issue_number} 環境セットアップ開始 ==="
 
-    # 1. メインブランチに移動して最新に更新
-    git checkout main
-    git pull origin main
-
-    # 2. Worktree作成
+    # 1. 既存のworktreeがあるかチェック
     mkdir -p worktree
-    git worktree add "worktree/issue-${issue_number}" -b "issue-${issue_number}"
-    cd "worktree/issue-${issue_number}"
 
-    # 3. 依存関係インストール
+        if [ -d "worktree/issue-${issue_number}" ]; then
+        echo "既存のworktree/issue-${issue_number}を使用します"
+        cd "worktree/issue-${issue_number}"
+    else
+        echo "新しいworktreeを作成します"
+
+        # 最新のorigin/mainから新しいworktreeを作成
+        git checkout main
+        git pull origin main
+        git worktree add "worktree/issue-${issue_number}" -b "issue-${issue_number}"
+        cd "worktree/issue-${issue_number}"
+    fi
+
+    # 2. 依存関係インストール
     npm install  # または yarn install、pip install等
 
-    # 4. Issue詳細確認
+    # 3. Issue詳細確認
     gh issue view ${issue_number}
 
     echo "=== 環境セットアップ完了 ==="
@@ -160,35 +167,123 @@ create_pr_and_complete() {
 
     # 1. コミットとプッシュ
     git add .
-    git commit -m "Fix #${issue_number}: ${pr_title}"
+    git commit -m "${pr_title}: (fix #${issue_number})"
     git push origin issue-${issue_number}
 
-    # 2. Pull Request作成
-    gh pr create \
-        --title "Fix #${issue_number}: ${pr_title}" \
+    # 2. Draft Pull Request作成
+    local pr_number=$(gh pr create \
+        --title "${pr_title} (fix #${issue_number})" \
         --body "${pr_description}
 
 ## 🔗 関連Issue
-Closes #${issue_number}
-
-## 📝 変更内容
-- [主な変更点1]
-- [主な変更点2]
-- [主な変更点3]
-
-## 🧪 テスト
-- [ ] 単体テスト実行
-- [ ] 統合テスト実行
-- [ ] 手動テスト実行
-
-## 📋 チェックリスト
-- [x] コードレビュー済み
-- [x] テスト追加済み
-- [x] ドキュメント更新済み" \
+- Closes #${issue_number}
+" \
         --head issue-${issue_number} \
-        --base main
+        --base main \
+        --draft | grep -o '[0-9]\+')
 
-    echo "=== Pull Request作成完了 ==="
+    echo "=== Draft Pull Request #${pr_number} 作成完了 ==="
+
+    # 3. PRのconflictチェック
+    echo "=== Conflictチェック中 ==="
+    sleep 5  # GitHub APIが更新されるまで少し待機
+
+    local mergeable_state=$(gh pr view ${pr_number} --json mergeable | jq -r '.mergeable')
+    if [ "$mergeable_state" = "CONFLICTING" ]; then
+        echo "❌ PR #${pr_number}にconflictが検出されました"
+
+        # Issue Managerに報告
+        ./agent-send.sh issue-manager "【Issue #${issue_number} Conflict報告】Worker${WORKER_NUM}
+
+## ⚠️ Merge Conflict発生
+PR #${pr_number}でmerge conflictが発生しました。
+
+## 対応が必要
+- ブランチ: issue-${issue_number}
+- PR: #${pr_number}
+- 状況: mainブランチとの競合
+
+## 次のステップ
+conflictを解決してPRを更新します。少しお待ちください。"
+
+        return 1
+    fi
+
+    # 4. GitHub Actions workflowsの確認
+    echo "=== GitHub Actions確認中 ==="
+
+    # 最大10分間（60回 × 10秒）GitHub Actionsの完了を待機
+    local max_attempts=60
+    local attempt=0
+
+    while [ $attempt -lt $max_attempts ]; do
+        local check_status=$(gh pr view ${pr_number} --json statusCheckRollup | jq -r '.statusCheckRollup[] | select(.conclusion != null) | .conclusion' | sort | uniq -c)
+        local pending_checks=$(gh pr view ${pr_number} --json statusCheckRollup | jq -r '.statusCheckRollup[] | select(.conclusion == null) | .name' | wc -l)
+
+        if [ "$pending_checks" -eq 0 ]; then
+            # 全てのチェックが完了
+            local failed_checks=$(echo "$check_status" | grep -v "SUCCESS" | wc -l)
+
+            if [ "$failed_checks" -eq 0 ]; then
+                echo "✅ 全てのGitHub Actions workflowsが成功しました"
+                break
+            else
+                echo "❌ GitHub Actions workflowsにfailureが検出されました"
+                echo "$check_status"
+
+                # Issue Managerに報告
+                ./agent-send.sh issue-manager "【Issue #${issue_number} CI失敗報告】Worker${WORKER_NUM}
+
+## ❌ GitHub Actions失敗
+PR #${pr_number}のGitHub Actions workflowsが失敗しました。
+
+## 失敗詳細
+${check_status}
+
+## 対応が必要
+- PR: #${pr_number}
+- ブランチ: issue-${issue_number}
+
+## 次のステップ
+テストを修正してPRを更新します。"
+
+                return 1
+            fi
+        fi
+
+        echo "GitHub Actions実行中... (${attempt}/${max_attempts})"
+        sleep 10
+        ((attempt++))
+    done
+
+    if [ $attempt -eq $max_attempts ]; then
+        echo "⏰ GitHub Actionsのタイムアウト（10分経過）"
+
+        # Issue Managerに報告
+        ./agent-send.sh issue-manager "【Issue #${issue_number} CI タイムアウト報告】Worker${WORKER_NUM}
+
+## ⏰ GitHub Actions タイムアウト
+PR #${pr_number}のGitHub Actions workflowsが10分以内に完了しませんでした。
+
+## 現在の状況
+- PR: #${pr_number}
+- ブランチ: issue-${issue_number}
+- ステータス: 実行中またはペンディング
+
+## 次のステップ
+手動でGitHub Actions の状況を確認してください。"
+
+        return 1
+    fi
+
+    # 5. 全てのチェックが成功した場合、DraftをReady for reviewに変更
+    echo "=== PRをReady for reviewに変更 ==="
+    gh pr ready ${pr_number}
+
+    echo "=== Issue #${issue_number} 完了処理開始 ==="
+
+    # 6. Issue Manager への完了報告
+    report_completion_to_manager ${issue_number} ${pr_number}
 }
 ```
 
@@ -212,30 +307,13 @@ report_completion_to_manager() {
     ./agent-send.sh issue-manager "【Issue #${issue_number} 完了報告】Worker${WORKER_NUM}
 
 ## 📋 Issue概要
-Issue #${issue_number}の解決が完了しました。
+Issue #${issue_number}のPR作成しました。
 
 ## 🔗 Pull Request
 PR #${pr_number} を作成済みです。
 - ブランチ: issue-${issue_number}
 - ベース: main
-
-## ✅ 実装内容
-- [実装した機能1]
-- [実装した機能2]
-- [修正したバグ3]
-
-## 🧪 テスト結果
-- 単体テスト: 全て通過
-- 統合テスト: 全て通過
-- 手動テスト: 動作確認済み
-
-## 📝 GitHub Issue状況
-- 進捗コメント: 追加済み
-- 解決手法: 詳細記載済み
-- 関連PR: リンク済み
-
-次のIssueがあればアサインをお願いします！"
-
+ご確認ください。問題がなければ、次のIssueがあればアサインをお願いします！"
     echo "Issue Manager への完了報告を送信しました"
 }
 ```

@@ -88,11 +88,21 @@ Issue #${issue_number}: ${issue_title}
 
 1. Git環境の準備
    \`\`\`bash
-   git checkout main
-   git pull origin main
    mkdir -p worktree
-   git worktree add worktree/issue-${issue_number} -b issue-${issue_number}
-   cd worktree/issue-${issue_number}
+
+      # 既存のworktreeがあるかチェック
+   if [ -d "worktree/issue-${issue_number}" ]; then
+     echo "既存のworktree/issue-${issue_number}を使用します"
+     cd worktree/issue-${issue_number}
+   else
+     echo "新しいworktreeを作成します"
+
+     # 最新のorigin/mainから新しいworktreeを作成
+     git checkout main
+     git pull origin main
+     git worktree add worktree/issue-${issue_number} -b issue-${issue_number}
+     cd worktree/issue-${issue_number}
+   fi
    \`\`\`
 
 2. Issue詳細確認

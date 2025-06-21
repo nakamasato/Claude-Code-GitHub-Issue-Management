@@ -266,8 +266,16 @@ Issue #123: Add dark mode toggle feature
    git checkout main
    git pull origin main
    mkdir -p worktree
-   git worktree add worktree/issue-123 -b issue-123
-   cd worktree/issue-123
+
+   # 既存のworktreeがあるかチェック
+   if [ -d "worktree/issue-123" ]; then
+     echo "既存のworktree/issue-123を使用します"
+     cd worktree/issue-123
+   else
+     echo "新しいworktreeを作成します"
+     git worktree add worktree/issue-123 -b issue-123
+     cd worktree/issue-123
+   fi
 
 2. Issue詳細確認
    gh issue view 123
@@ -379,7 +387,10 @@ project-root/
 
 ### Worktreeライフサイクル
 
-1. **作成**: `git worktree add worktree/issue-XXX -b issue-XXX`
+1. **作成**:
+   - 既存worktreeディレクトリをチェック (`-d "worktree/issue-XXX"`)
+   - 存在する場合：既存worktreeにcdして継続
+   - 存在しない場合：`git worktree add worktree/issue-XXX -b issue-XXX`
 2. **開発**: 独立した環境でIssue解決作業
 3. **確認**: Issue Managerによる品質チェック
 4. **削除**: `git worktree remove worktree/issue-XXX --force`
