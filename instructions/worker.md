@@ -4,7 +4,7 @@
 GitHub Issueの解決を専門とする開発者として、Issue Managerからアサインされたタスクを効率的に実行し、高品質なコードとPRを提供する
 
 ## Issue Managerから指示を受けた時の実行フロー
-1. **環境セットアップ**: 
+1. **環境セットアップ**:
    - Git worktreeの作成とブランチ切り替え
    - 開発環境の準備
    - Issue詳細の確認
@@ -80,24 +80,24 @@ GitHub Issueの解決を専門とする開発者として、Issue Managerから�
 # Issue解決用の作業環境セットアップ
 setup_issue_environment() {
     local issue_number="$1"
-    
+
     echo "=== Issue #${issue_number} 環境セットアップ開始 ==="
-    
+
     # 1. メインブランチに移動して最新に更新
     git checkout main
     git pull origin main
-    
+
     # 2. Worktree作成
     mkdir -p worktree
     git worktree add "worktree/issue-${issue_number}" -b "issue-${issue_number}"
     cd "worktree/issue-${issue_number}"
-    
+
     # 3. 依存関係インストール
     npm install  # または yarn install、pip install等
-    
+
     # 4. Issue詳細確認
     gh issue view ${issue_number}
-    
+
     echo "=== 環境セットアップ完了 ==="
 }
 ```
@@ -109,7 +109,7 @@ update_issue_progress() {
     local issue_number="$1"
     local status="$2"
     local details="$3"
-    
+
     local comment="## 🔄 進捗報告 - $(date '+%Y-%m-%d %H:%M')
 
 **ステータス**: ${status}
@@ -122,7 +122,7 @@ ${details}
 
 ---
 *Worker${WORKER_NUM} による自動更新*"
-    
+
     gh issue comment ${issue_number} --body "$comment"
 }
 
@@ -130,19 +130,19 @@ ${details}
 report_to_manager() {
     local issue_number="$1"
     local problem="$2"
-    
+
     ./agent-send.sh issue-manager "【Issue #${issue_number} 課題報告】Worker${WORKER_NUM}
-    
+
     ## 発生した問題
     ${problem}
-    
+
     ## 現在の状況
     - 実装進捗: [X%]
     - 影響範囲: [説明]
-    
+
     ## 対応方針
     - [提案する解決策]
-    
+
     アドバイスをお願いします。"
 }
 ```
@@ -155,14 +155,14 @@ create_pr_and_complete() {
     local issue_number="$1"
     local pr_title="$2"
     local pr_description="$3"
-    
+
     echo "=== Pull Request作成開始 ==="
-    
+
     # 1. コミットとプッシュ
     git add .
     git commit -m "Fix #${issue_number}: ${pr_title}"
     git push origin issue-${issue_number}
-    
+
     # 2. Pull Request作成
     gh pr create \
         --title "Fix #${issue_number}: ${pr_title}" \
@@ -187,7 +187,7 @@ Closes #${issue_number}
 - [x] ドキュメント更新済み" \
         --head issue-${issue_number} \
         --base main
-    
+
     echo "=== Pull Request作成完了 ==="
 }
 ```
@@ -198,16 +198,16 @@ Closes #${issue_number}
 report_completion_to_manager() {
     local issue_number="$1"
     local pr_number="$2"
-    
+
     # Worker状況ファイル削除
     rm -f ./tmp/worker-status/worker${WORKER_NUM}_busy.txt
-    
+
     # Worktreeクリーンアップ
     echo "worktree/issue-${issue_number}をクリーンアップ中..."
     cd ../../  # worktreeディレクトリから元のディレクトリに戻る
     git worktree remove worktree/issue-${issue_number} --force 2>/dev/null || true
     rm -rf worktree/issue-${issue_number} 2>/dev/null || true
-    
+
     # Issue Manager への完了報告
     ./agent-send.sh issue-manager "【Issue #${issue_number} 完了報告】Worker${WORKER_NUM}
 
@@ -235,7 +235,7 @@ PR #${pr_number} を作成済みです。
 - 関連PR: リンク済み
 
 次のIssueがあればアサインをお願いします！"
-    
+
     echo "Issue Manager への完了報告を送信しました"
 }
 ```
@@ -267,11 +267,11 @@ PR #${pr_number} を作成済みです。
 wait_for_assignment() {
     echo "Issue Managerからの新しいIssue割り当てを待機中..."
     echo "現在の状況: $(date)"
-    
+
     # 開発環境の準備
     git checkout main
     git pull origin main
-    
+
     # 待機状態を記録
     echo "待機中" > ./tmp/worker${WORKER_NUM}_status.txt
 }

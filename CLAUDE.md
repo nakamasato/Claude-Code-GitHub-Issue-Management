@@ -14,4 +14,4 @@
 ```
 
 ## 基本フロー
-GitHub Issues → issue-manager → workers → issue-manager → GitHub PRs 
+GitHub Issues → issue-manager → workers → issue-manager → GitHub PRs

@@ -34,13 +34,13 @@ log_error() {
 # 前提条件チェック
 check_prerequisites() {
     log_info "前提条件をチェック中..."
-    
+
     # Git チェック
     if ! command -v git &> /dev/null; then
         log_error "Gitがインストールされていません"
         exit 1
     fi
-    
+
     # tmux チェック
     if ! command -v tmux &> /dev/null; then
         log_error "tmuxがインストールされていません"
@@ -48,7 +48,7 @@ check_prerequisites() {
         echo "Ubuntu: sudo apt install tmux"
         exit 1
     fi
-    
+
     # gh CLI チェック
     if ! command -v gh &> /dev/null; then
         log_warning "GitHub CLI (gh) がインストールされていません"
@@ -59,7 +59,7 @@ check_prerequisites() {
             exit 1
         fi
     fi
-    
+
     log_success "前提条件チェック完了"
 }
 
@@ -71,7 +71,7 @@ select_installation_method() {
     echo "2) CLAUDE.md統合 - 既存設定に追記"
     echo "3) サブディレクトリ独立 - 完全独立運用"
     echo ""
-    
+
     while true; do
         read -p "選択 (1-3): " choice
         case $choice in
@@ -101,11 +101,11 @@ select_installation_method() {
 download_files() {
     local target_dir="$1"
     local base_url="https://raw.githubusercontent.com/nakamasato/Claude-Code-Communication/refactor/github-issue-management-system"
-    
+
     log_info "必要ファイルをダウンロード中..."
-    
+
     mkdir -p "${target_dir}/instructions"
-    
+
     # ファイルリスト
     local files=(
         "instructions/issue-manager.md"
@@ -114,32 +114,32 @@ download_files() {
         "setup.sh"
         "local-verification.md"
     )
-    
+
     for file in "${files[@]}"; do
         log_info "ダウンロード: $file"
         curl -sSL "${base_url}/${file}" -o "${target_dir}/${file}"
-        
+
         # 実行権限付与（shファイルの場合）
         if [[ $file == *.sh ]]; then
             chmod +x "${target_dir}/${file}"
         fi
     done
-    
+
     log_success "ファイルダウンロード完了"
 }
 
 # モジュラー構成インストール
 install_modular() {
     log_info "モジュラー構成でインストール中..."
-    
+
     local target_dir=".claude-issue-manager"
-    
+
     # ディレクトリ作成
     mkdir -p "$target_dir"
-    
+
     # ファイルダウンロード
     download_files "$target_dir"
-    
+
     # CLAUDE-issue.md作成
     cat > "${target_dir}/CLAUDE-issue.md" << 'EOF'
 # GitHub Issue Management System
@@ -160,7 +160,7 @@ install_modular() {
 ## 基本フロー
 GitHub Issues → issue-manager → workers → issue-manager → GitHub PRs
 EOF
-    
+
     # settings.local.json 更新案内
     cat > "${target_dir}/settings-update.json" << 'EOF'
 {
@@ -187,9 +187,9 @@ EOF
   }
 }
 EOF
-    
+
     log_success "モジュラー構成インストール完了"
-    
+
     echo ""
     echo "📋 次の手順:"
     echo "1. .claude/settings.local.json に以下の権限を追加:"
@@ -205,10 +205,10 @@ EOF
 # CLAUDE.md統合インストール
 install_integration() {
     log_info "CLAUDE.md統合でインストール中..."
-    
+
     # instructionsディレクトリに配置
     download_files "."
-    
+
     # CLAUDE.md統合内容作成
     cat > "claude-issue-integration.md" << 'EOF'
 
@@ -230,9 +230,9 @@ install_integration() {
 - Issue Manager: @instructions/issue-manager.md
 - Workers: @instructions/worker.md
 EOF
-    
+
     log_success "統合用ファイル準備完了"
-    
+
     echo ""
     echo "📋 次の手順:"
     echo "1. 以下の内容をCLAUDE.mdに追記:"
@@ -245,15 +245,15 @@ EOF
 # 独立インストール
 install_independent() {
     log_info "サブディレクトリ独立でインストール中..."
-    
+
     local target_dir="issue-management"
-    
+
     # ディレクトリ作成
     mkdir -p "$target_dir"
-    
+
     # ファイルダウンロード
     download_files "$target_dir"
-    
+
     # 独立用のCLAUDE.md作成
     cp CLAUDE.md "${target_dir}/" 2>/dev/null || cat > "${target_dir}/CLAUDE.md" << 'EOF'
 # GitHub Issue Management System
@@ -274,9 +274,9 @@ install_independent() {
 ## 基本フロー
 GitHub Issues → issue-manager → workers → issue-manager → GitHub PRs
 EOF
-    
+
     log_success "独立ディレクトリインストール完了"
-    
+
     echo ""
     echo "📋 次の手順:"
     echo "1. issue-managementディレクトリに移動:"
@@ -293,7 +293,7 @@ EOF
 main() {
     check_prerequisites
     select_installation_method
-    
+
     case $INSTALL_METHOD in
         "modular")
             install_modular
@@ -305,7 +305,7 @@ main() {
             install_independent
             ;;
     esac
-    
+
     echo ""
     log_success "🎉 GitHub Issue Management System インストール完了！"
     echo ""

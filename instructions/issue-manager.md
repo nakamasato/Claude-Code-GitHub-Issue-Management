@@ -42,24 +42,24 @@ fi
 assign_issue() {
     local issue_number="$1"
     local issue_title="$2"
-    
+
     # 利用可能なWorkerを探す
     for worker_num in 1 2 3; do
         if [ ! -f ./tmp/worker-status/worker${worker_num}_busy.txt ]; then
             echo "Worker${worker_num}にIssue #${issue_number}をAssign"
-            
+
             # GitHub上でWorkerにAssign（実際のGitHubユーザー名に置き換え）
             gh issue edit $issue_number --add-assignee worker${worker_num}_github_username
-            
+
             # ラベル追加
             gh issue edit $issue_number --add-label "assigned,in-progress"
-            
+
             # Worker状況ファイル作成
             echo "Issue #${issue_number}: ${issue_title}" > ./tmp/worker-status/worker${worker_num}_busy.txt
-            
+
             # Workerに作業指示を送信
             setup_worker_environment $worker_num $issue_number "$issue_title"
-            
+
             break
         fi
     done
@@ -73,11 +73,11 @@ setup_worker_environment() {
     local worker_num="$1"
     local issue_number="$2"
     local issue_title="$3"
-    
+
     # Workerセッションをクリア
     ./agent-send.sh worker${worker_num} "/clear"
     sleep 2
-    
+
     # Git環境セットアップ指示
     ./agent-send.sh worker${worker_num} "あなたはworker${worker_num}です。
 
@@ -115,12 +115,12 @@ Issue #${issue_number}: ${issue_title}
 # Worker重複割り当て防止
 check_worker_availability() {
     local worker_num="$1"
-    
+
     if [ -f ./tmp/worker-status/worker${worker_num}_busy.txt ]; then
         echo "Worker${worker_num}は既に作業中です: $(cat ./tmp/worker-status/worker${worker_num}_busy.txt)"
         return 1
     fi
-    
+
     return 0
 }
 ```
@@ -146,10 +146,10 @@ handle_worker_issue_report() {
     local worker_num="$1"
     local issue_number="$2"
     local problem_description="$3"
-    
+
     echo "Worker${worker_num}からIssue #${issue_number}の課題報告を受信"
     echo "問題内容: ${problem_description}"
-    
+
     # GitHub Issueに課題を記録
     gh issue comment $issue_number --body "## ⚠️ 実装中の課題報告 - Worker${worker_num}
 
@@ -162,14 +162,14 @@ ${problem_description}
 
 ---
 *Issue Manager による自動記録*"
-    
+
     # Workerに対応方針を返信（手動または自動）
     echo "Worker${worker_num}への対応方針を検討してください："
     echo "1. 技術的なアドバイスを提供"
     echo "2. 別のアプローチを提案"
     echo "3. 他のWorkerに再アサイン"
     echo "4. Issue要件の明確化"
-    
+
     # 対応例（手動で実行）
     # ./agent-send.sh worker${worker_num} "課題について以下の解決策を試してください：[具体的な指示]"
 }
@@ -181,32 +181,32 @@ ${problem_description}
 handle_worker_completion() {
     local worker_num="$1"
     local issue_number="$2"
-    
+
     echo "Worker${worker_num}からIssue #${issue_number}の完了報告を受信"
-    
+
     # GitHub Issue確認
     echo "=== GitHub Issue確認 ==="
     gh issue view $issue_number --json state,comments,title
-    
+
     # Pull Request確認
     echo "=== Pull Request確認 ==="
     gh pr list --head issue-${issue_number} --json number,title,state,url
-    
+
     # PR詳細確認
     if pr_number=$(gh pr list --head issue-${issue_number} --json number --jq '.[0].number'); then
         echo "=== PR #${pr_number} 詳細 ==="
         gh pr view $pr_number --json title,body,commits,files
-        
+
         # PRの確認結果をWorkerに通知
         ./agent-send.sh worker${worker_num} "PR #${pr_number}を確認しました。
-        
+
 【確認結果】
 - Issue解決状況: 確認中
 - コード変更内容: レビュー中
 - 次のアクション: [承認/修正依頼/追加作業]
 
 詳細な確認結果は後ほど報告します。"
-        
+
         # ローカル動作確認の実行（オプション）
         read -p "ローカル動作確認を実行しますか？ (y/N): " -n 1 -r
         echo
@@ -214,10 +214,10 @@ handle_worker_completion() {
             local_verification $issue_number
         fi
     fi
-    
+
     # Worker状況ファイル削除（作業完了）
     rm -f ./tmp/worker-status/worker${worker_num}_busy.txt
-    
+
     # Worktreeクリーンアップ（必要に応じて）
     if [ -d "worktree/issue-${issue_number}" ]; then
         echo "worktree/issue-${issue_number}をクリーンアップ中..."
@@ -232,12 +232,12 @@ handle_worker_completion() {
 # Worker進捗の定期確認
 monitor_worker_progress() {
     echo "=== Worker進捗確認 ==="
-    
+
     for worker_num in 1 2 3; do
         if [ -f "./tmp/worker-status/worker${worker_num}_busy.txt" ]; then
             local issue_info=$(cat "./tmp/worker-status/worker${worker_num}_busy.txt")
             echo "Worker${worker_num}: 作業中 - ${issue_info}"
-            
+
             # GitHub Issueの最新コメントを確認
             local issue_number=$(echo "$issue_info" | grep -o '#[0-9]\+' | cut -c2-)
             if [ -n "$issue_number" ]; then
@@ -257,37 +257,57 @@ monitor_worker_progress() {
 local_verification() {
     local issue_number="$1"
     local branch_name="issue-${issue_number}"
-    
+
     # local-verification.mdファイルの存在確認
     if [ ! -f "./local-verification.md" ]; then
         echo "local-verification.mdが存在しないため、ローカル動作確認をスキップします"
         return 0
     fi
-    
+
     # ファイルの第一行目がskip:trueの場合
     if head -n 1 "./local-verification.md" | grep -q "<!-- skip:true -->"; then
         echo "local-verification.mdの第一行目に<!-- skip:true -->が設定されているため、ローカル動作確認をスキップします"
         return 0
     fi
-    
+
     echo "=== ローカル動作確認開始 ==="
     echo "チェック項目: local-verification.md に基づいて確認を実施します"
     echo ""
+
+    # worktreeディレクトリを探してそこに移動
+    local worktree_dir=$(git worktree list | grep "issue-${issue_number}" | awk '{print $1}')
+    if [ -z "$worktree_dir" ]; then
+        echo "❌ Issue #${issue_number}のworktreeディレクトリが見つかりません"
+        echo "Workerがまだ環境セットアップを完了していない可能性があります"
+        return 1
+    fi
+
+    echo "📁 Worktreeディレクトリ: $worktree_dir"
+    echo ""
     echo "📋 手順:"
-    echo "1. local-verification.md を開いて環境セットアップ手順を確認"
-    echo "2. 記載されている手順に従ってサーバーを起動"
-    echo "3. チェック項目に基づいて動作確認を実施"
-    echo "4. 問題がなければ確認完了"
+    echo "1. worktreeディレクトリに移動: cd $worktree_dir"
+    echo "2. local-verification.md の環境セットアップ手順を確認"
+    echo "3. 記載されている手順に従ってサーバーを起動"
+    echo "4. チェック項目に基づいて動作確認を実施"
+    echo "5. 問題がなければ確認完了"
     echo ""
     echo "📄 確認ファイル: local-verification.md"
     echo "🌐 想定URL: http://localhost:3000 (プロジェクトに応じて変更)"
     echo ""
+
+    # worktreeディレクトリに移動
+    cd "$worktree_dir"
+    echo "📍 現在の作業ディレクトリ: $(pwd)"
+    echo ""
     echo "動作確認を開始してください。完了したらEnterを押してください。"
     read -r
-    
+
+    # 元のディレクトリに戻る
+    cd - > /dev/null
+
     # local-verification.mdの内容を取得
     local checklist_content=$(cat ./local-verification.md)
-    
+
     # 確認結果をIssueにコメント
     local verification_comment="## 🔍 ローカル動作確認完了
 
@@ -314,7 +334,7 @@ ${checklist_content}
 
 ---
 *Issue Manager による自動確認*"
-    
+
     gh issue comment $issue_number --body "$verification_comment"
 }
 ```
@@ -325,17 +345,17 @@ ${checklist_content}
 # 定期的なIssue確認（cron jobまたは手動実行）
 monitor_issues() {
     echo "=== GitHub Issue監視開始 ==="
-    
+
     # オープンなIssueを取得
     gh issue list --state open --json number,title,assignees --jq '.[] | select(.assignees | length == 0)' > ./tmp/unassigned_issues.json
-    
+
     # 未割り当てIssueがある場合
     if [ -s ./tmp/unassigned_issues.json ]; then
         echo "未割り当てのIssueが見つかりました"
         cat ./tmp/unassigned_issues.json | jq -r '.number + ": " + .title' | while read -r issue_line; do
             issue_num=$(echo "$issue_line" | cut -d: -f1)
             issue_title=$(echo "$issue_line" | cut -d: -f2-)
-            
+
             echo "Issue #${issue_num}の割り当てを検討中..."
             assign_issue "$issue_num" "$issue_title"
         done

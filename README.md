@@ -236,6 +236,115 @@ GitHub Issues → issue-manager → workers → GitHub PRs
 - ✅ **自動コメント**: Issue進捗の自動記録
 - ✅ **品質管理**: ローカル確認とテスト実行
 
+## 🌿 Git Worktree管理システム
+
+### Worktreeの使用目的
+GitHub Issue管理システムでは、各IssueごとにGit worktreeを作成し、並列開発を可能にします。
+
+### Worktreeディレクトリ構造
+```
+project-root/
+├── .git/
+├── main-code-files...
+├── worktree/               # Worktree専用ディレクトリ
+│   ├── issue-123/         # Issue #123用の作業環境
+│   ├── issue-456/         # Issue #456用の作業環境
+│   └── issue-789/         # Issue #789用の作業環境
+└── .gitignore             # worktree/が自動追加される
+```
+
+### Worktreeライフサイクル
+
+#### 1. **作成** (Worker環境セットアップ時)
+```bash
+# Worker環境セットアップコマンド
+mkdir -p worktree
+git worktree add worktree/issue-123 -b issue-123
+cd worktree/issue-123
+
+# 依存関係インストール
+npm install
+```
+
+#### 2. **開発** (Worker作業中)
+```bash
+# Issue解決のための実装作業
+# worktree/issue-123/ 内で完全に独立した開発環境
+# - 独自のnode_modules
+# - 独自のブランチ (issue-123)
+# - 独自の作業ファイル
+```
+
+#### 3. **確認** (Issue Manager品質チェック)
+```bash
+# Issue Managerがローカル確認を実行する場合
+worktree_dir=$(git worktree list | grep "issue-123" | awk '{print $1}')
+cd "$worktree_dir"  # → worktree/issue-123/
+
+# local-verification.mdの手順に従って動作確認
+npm run dev
+# localhost:3000でテスト
+```
+
+#### 4. **削除** (Issue完了時)
+```bash
+# Worker完了報告時に自動クリーンアップ
+cd ../../  # プロジェクトルートに戻る
+git worktree remove worktree/issue-123 --force
+rm -rf worktree/issue-123
+```
+
+### セキュリティとメリット
+
+#### Claude Codeセキュリティ準拠
+- **子ディレクトリ制限**: `worktree/`は子ディレクトリなので安全
+- **パス制限回避**: `../`パスを使用しない設計
+
+#### 開発効率向上
+- **並列開発**: 最大3つのIssue同時処理
+- **環境分離**: 各Issueで完全に独立した環境
+- **依存関係隔離**: 異なるパッケージバージョンでも競合なし
+- **ブランチ管理**: 自動的な`issue-XXX`ブランチ作成
+
+#### 自動管理
+- **`.gitignore`自動更新**: `worktree/`エントリの自動追加
+- **ディレクトリ作成**: セットアップ時の自動作成
+- **自動クリーンアップ**: Issue完了時の自動削除
+
+### 実際の使用例
+
+```bash
+# Issue #123, #456, #789が同時進行の場合
+git worktree list
+
+# 出力例:
+# /path/to/project                    (main)
+# /path/to/project/worktree/issue-123 [issue-123]
+# /path/to/project/worktree/issue-456 [issue-456] 
+# /path/to/project/worktree/issue-789 [issue-789]
+
+# 各Workerは独立した環境で作業
+Worker1: worktree/issue-123/ でReact新機能開発
+Worker2: worktree/issue-456/ でAPI修正
+Worker3: worktree/issue-789/ でテスト追加
+```
+
+### トラブルシューティング
+
+#### Worktreeが残ってしまった場合
+```bash
+# 手動クリーンアップ
+git worktree list
+git worktree remove worktree/issue-XXX --force
+rm -rf worktree/issue-XXX
+```
+
+#### .gitignoreの手動更新
+```bash
+# worktree/エントリが無い場合
+echo "worktree/" >> .gitignore
+```
+
 ## 🔧 困ったときは
 
 ### Q: エージェントが反応しない
