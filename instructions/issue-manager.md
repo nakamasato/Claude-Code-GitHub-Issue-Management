@@ -4,7 +4,7 @@
 GitHub Issueを常に監視し、効率的にWorkerに作業をアサインしてプロジェクトを進行管理する
 
 ## 基本動作フロー
-1. **Issue監視**: 定期的にGitHub Issue一覧をチェックし、Openなissueを確認
+1. **Issue監視**: 定期的にGitHub Issue一覧をチェックし、Openで且つユーザから依頼された条件があればその条件にマッチするissueを確認
 2. **Worker管理**: 各Workerの作業状況を把握し、空いているWorkerを特定
 3. **Issue割り当て**: 適切なWorkerにIssueをAssignし、ラベルを付与
 4. **環境準備**: AssignされたWorkerに対して開発環境のセットアップを指示
@@ -17,8 +17,34 @@ GitHub Issueを常に監視し、効率的にWorkerに作業をアサインし�
 # オープンなIssueを一覧表示
 gh issue list --state open --json number,title,assignees,labels
 
+# オープンかつ@meにassignされているissue
+gh issue list --state open --assignee "@me" --json number,title,assignees,labels
+
+# オープンかつfilter条件に合うissue
+gh issue list --state open --search "[search query]"
+
 # 特定のIssueの詳細確認
 gh issue view [issue_number] --json title,body,assignees,labels,comments
+
+# フィルタ条件の詳細な使用例
+# ラベルベースフィルタ
+gh issue list --state open --search "label:bug"
+gh issue list --state open --search "label:enhancement"
+gh issue list --state open --search "label:documentation"
+gh issue list --state open --search "label:\"good first issue\""
+
+# 複合条件フィルタ
+gh issue list --state open --search "no:assignee label:bug"
+gh issue list --state open --search "no:assignee label:enhancement"
+gh issue list --state open --search "label:bug label:\"help wanted\""
+
+# 日付ベースフィルタ
+gh issue list --state open --search "created:>2024-01-01"
+gh issue list --state open --search "updated:>2024-01-01"
+
+# テキスト検索フィルタ
+gh issue list --state open --search "login in:title"
+gh issue list --state open --search "API in:body"
 ```
 
 ### 2. Worker状況管理
@@ -46,10 +72,10 @@ assign_issue() {
     # 利用可能なWorkerを探す
     for worker_num in 1 2 3; do
         if [ ! -f ./tmp/worker-status/worker${worker_num}_busy.txt ]; then
-            echo "Worker${worker_num}にIssue #${issue_number}をAssign"
+            echo "Issue #${issue_number}を@meにAssign"
 
-            # GitHub上でWorkerにAssign（実際のGitHubユーザー名に置き換え）
-            gh issue edit $issue_number --add-assignee worker${worker_num}_github_username
+            # GitHub上で現在ログインしているユーザーにAssign
+            gh issue edit $issue_number --add-assignee @me
 
             # ラベル追加
             gh issue edit $issue_number --add-label "assigned,in-progress"
@@ -350,29 +376,82 @@ ${checklist_content}
 ```
 
 ## Issue管理の継続的サイクル
-### 1. 定期的なIssue監視
+### 1. 定期的なIssue監視（フィルタ条件対応）
 ```bash
-# 定期的なIssue確認（cron jobまたは手動実行）
-monitor_issues() {
+# フィルタ条件に基づくIssue監視
+# 使用例:
+# monitor_issues_with_filter ""                    # 自分にアサインされたIssue（デフォルト）
+# monitor_issues_with_filter "no:assignee"         # 未割り当てIssue
+# monitor_issues_with_filter "no:assignee label:bug"           # bugラベルの未割り当てIssue
+# monitor_issues_with_filter "no:assignee label:enhancement"   # enhancementラベルの未割り当てIssue
+# monitor_issues_with_filter "assignee:@me"        # 自分にアサインされたIssue（明示的指定）
+# monitor_issues_with_filter "no:assignee label:\"help wanted\""   # 未割り当て且つヘルプ募集
+monitor_issues_with_filter() {
+    local filter_condition="$1"
     echo "=== GitHub Issue監視開始 ==="
 
-    # オープンなIssueを取得
-    gh issue list --state open --json number,title,assignees --jq '.[] | select(.assignees | length == 0)' > ./tmp/unassigned_issues.json
+    # フィルタ条件の表示
+    if [ -n "$filter_condition" ]; then
+        echo "フィルタ条件: $filter_condition"
+    else
+        echo "フィルタ条件: なし（自分にアサインされたIssue）"
+    fi
 
-    # 未割り当てIssueがある場合
-    if [ -s ./tmp/unassigned_issues.json ]; then
-        echo "未割り当てのIssueが見つかりました"
-        cat ./tmp/unassigned_issues.json | jq -r '.number + ": " + .title' | while read -r issue_line; do
+    # 一時ファイルのクリーンアップ
+    mkdir -p ./tmp
+    rm -f ./tmp/filtered_issues.json
+
+    # フィルタ条件に基づいてIssueを取得
+    if [ -n "$filter_condition" ]; then
+        # フィルタ条件ありの場合
+        gh issue list --state open --search "$filter_condition" --json number,title,assignees,labels > ./tmp/filtered_issues.json
+    else
+        # フィルタ条件なしの場合（デフォルト：自分にアサインされたIssue）
+        gh issue list --state open --search "assignee:@me" --json number,title,assignees,labels > ./tmp/filtered_issues.json
+    fi
+
+    # フィルタされたIssueがある場合
+    if [ -s ./tmp/filtered_issues.json ]; then
+        local issue_count=$(jq length ./tmp/filtered_issues.json)
+        echo "条件に合致するIssueが ${issue_count}件 見つかりました"
+
+        # 各Issueを処理
+        jq -r '.[] | "\(.number):\(.title)"' ./tmp/filtered_issues.json | while read -r issue_line; do
             issue_num=$(echo "$issue_line" | cut -d: -f1)
             issue_title=$(echo "$issue_line" | cut -d: -f2-)
 
-            echo "Issue #${issue_num}の割り当てを検討中..."
-            assign_issue "$issue_num" "$issue_title"
+            echo ""
+            echo "=== Issue #${issue_num} 処理開始 ==="
+            echo "タイトル: ${issue_title}"
+
+            # Issue詳細表示
+            echo "--- Issue詳細 ---"
+            gh issue view $issue_num --json title,body,labels,assignees | jq -r '
+                "Title: " + .title,
+                "Labels: " + (.labels | map(.name) | join(", ")),
+                "Assignees: " + (if .assignees | length > 0 then (.assignees | map(.login) | join(", ")) else "未割り当て" end),
+                "Body preview: " + (.body | .[0:200] + (if length > 200 then "..." else "" end))
+            '
+
+            # 割り当て確認
+            echo ""
+            read -p "Issue #${issue_num} を自分にアサインしますか？ (y/N): " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                assign_issue "$issue_num" "$issue_title"
+            else
+                echo "Issue #${issue_num} をスキップしました"
+            fi
         done
     else
-        echo "新しい未割り当てIssueはありません"
+        echo "条件に合致するIssueはありません"
     fi
+
+    # 一時ファイルクリーンアップ
+    rm -f ./tmp/filtered_issues.json
 }
+
+
 ```
 
 ### 2. Worker負荷バランシング
@@ -390,6 +469,73 @@ check_worker_load() {
 }
 ```
 
+## フィルタ条件を使った実践的な使用例
+
+### シナリオ別のフィルタ活用
+```bash
+# 1. 自分の作業進捗を確認したい場合（デフォルト）
+monitor_issues_with_filter ""
+
+# 2. 新しいIssueを探したい場合
+monitor_issues_with_filter "no:assignee"
+
+# 3. 自分のバグ修正タスクを確認したい場合
+monitor_issues_with_filter "assignee:@me label:bug"
+
+# 4. 未割り当てのバグを探したい場合
+monitor_issues_with_filter "no:assignee label:bug"
+
+# 5. ヘルプが必要なタスクを探したい場合
+monitor_issues_with_filter "no:assignee label:\"help wanted\""
+
+# 6. 新機能開発に集中したい場合
+monitor_issues_with_filter "no:assignee label:enhancement"
+
+# 7. ドキュメント関連のタスクを探したい場合
+monitor_issues_with_filter "no:assignee label:documentation"
+
+# 8. 初心者向けタスクを探したい場合
+monitor_issues_with_filter "no:assignee label:\"good first issue\""
+
+# 9. 質問への回答を探したい場合
+monitor_issues_with_filter "no:assignee label:question"
+
+# 10. 今週作成されたIssueのみを確認したい場合
+monitor_issues_with_filter "created:>$(date -d '1 week ago' '+%Y-%m-%d')"
+
+# 11. 特定のキーワードを含むIssueを確認したい場合
+monitor_issues_with_filter "authentication in:title"
+monitor_issues_with_filter "API in:body"
+
+# 12. 複数の条件を組み合わせたい場合
+monitor_issues_with_filter "no:assignee label:bug label:\"help wanted\""
+```
+
+### 定期的な監視スケジュール例
+```bash
+# 朝の作業開始時：自分の作業進捗確認（デフォルト）
+monitor_issues_with_filter ""
+
+# 作業の合間：新しいヘルプ募集タスクをチェック
+monitor_issues_with_filter "no:assignee label:\"help wanted\""
+
+# 午前中：バグ修正に集中
+monitor_issues_with_filter "no:assignee label:bug"
+
+# 午後：新機能開発
+monitor_issues_with_filter "no:assignee label:enhancement"
+
+# 空き時間：ドキュメント作成や質問回答
+monitor_issues_with_filter "no:assignee label:documentation"
+monitor_issues_with_filter "no:assignee label:question"
+
+# 初心者歓迎のタスクを探すとき
+monitor_issues_with_filter "no:assignee label:\"good first issue\""
+
+# 夕方：自分の作業完了状況を再確認
+monitor_issues_with_filter "assignee:@me"
+```
+
 ## 重要なポイント
 - 各Workerが同時に1つのIssueのみ処理するよう厳密管理
 - GitHub IssueとPRの状況を常に把握
@@ -397,3 +543,4 @@ check_worker_load() {
 - 進捗の可視化と適切なフィードバック
 - 品質確保のためのローカル確認プロセス
 - 継続的なIssue監視と効率的な割り当て
+- **フィルタ条件を活用した効率的なIssue管理**
