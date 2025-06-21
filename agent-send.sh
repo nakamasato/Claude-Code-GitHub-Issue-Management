@@ -5,8 +5,7 @@
 # エージェント→tmuxターゲット マッピング
 get_agent_target() {
     case "$1" in
-        "president") echo "president" ;;
-        "boss1") echo "multiagent:0.0" ;;
+        "issue-manager") echo "multiagent:0.0" ;;
         "worker1") echo "multiagent:0.1" ;;
         "worker2") echo "multiagent:0.2" ;;
         "worker3") echo "multiagent:0.3" ;;
@@ -23,16 +22,15 @@ show_usage() {
   $0 --list
 
 利用可能エージェント:
-  president - プロジェクト統括責任者
-  boss1     - チームリーダー  
-  worker1   - 実行担当者A
-  worker2   - 実行担当者B
-  worker3   - 実行担当者C
+  issue-manager - GitHub Issue管理者
+  worker1       - Issue解決担当者A
+  worker2       - Issue解決担当者B
+  worker3       - Issue解決担当者C
 
 使用例:
-  $0 president "指示書に従って"
-  $0 boss1 "Hello World プロジェクト開始指示"
-  $0 worker1 "作業完了しました"
+  $0 issue-manager "GitHub Issue確認をお願いします"
+  $0 worker1 "Issue #123をアサインしました"
+  $0 worker2 "Issue解決完了しました"
 EOF
 }
 
@@ -40,11 +38,10 @@ EOF
 show_agents() {
     echo "📋 利用可能なエージェント:"
     echo "=========================="
-    echo "  president → president:0     (プロジェクト統括責任者)"
-    echo "  boss1     → multiagent:0.0  (チームリーダー)"
-    echo "  worker1   → multiagent:0.1  (実行担当者A)"
-    echo "  worker2   → multiagent:0.2  (実行担当者B)" 
-    echo "  worker3   → multiagent:0.3  (実行担当者C)"
+    echo "  issue-manager → multiagent:0.0  (GitHub Issue管理者)"
+    echo "  worker1       → multiagent:0.1  (Issue解決担当者A)"
+    echo "  worker2       → multiagent:0.2  (Issue解決担当者B)" 
+    echo "  worker3       → multiagent:0.3  (Issue解決担当者C)"
 }
 
 # ログ記録
