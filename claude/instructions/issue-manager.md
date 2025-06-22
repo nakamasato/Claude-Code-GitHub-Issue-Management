@@ -92,11 +92,11 @@ setup_worker_environment() {
     local issue_title="$3"
 
     # Workerセッションをクリア
-    ./agent-send.sh worker${worker_num} "/clear"
+    ./claude/agent-send.sh worker${worker_num} "/clear"
     sleep 2
 
     # Git環境セットアップ指示
-    ./agent-send.sh worker${worker_num} "あなたはworker${worker_num}です。
+    ./claude/agent-send.sh worker${worker_num} "あなたはworker${worker_num}です。
 
 【GitHub Issue Assignment】
 Issue #${issue_number}: ${issue_title}
@@ -204,7 +204,7 @@ ${problem_description}
     echo "4. Issue要件の明確化"
 
     # 対応例（手動で実行）
-    # ./agent-send.sh worker${worker_num} "課題について以下の解決策を試してください：[具体的な指示]"
+    # ./claude/agent-send.sh worker${worker_num} "課題について以下の解決策を試してください：[具体的な指示]"
 }
 ```
 
@@ -231,7 +231,7 @@ handle_worker_completion() {
         gh pr view $pr_number --json title,body,commits,files
 
         # PRの確認結果をWorkerに通知
-        ./agent-send.sh worker${worker_num} "PR #${pr_number}を確認しました。
+        ./claude/agent-send.sh worker${worker_num} "PR #${pr_number}を確認しました。
 
 【確認結果】
 - Issue解決状況: 確認中

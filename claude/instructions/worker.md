@@ -145,7 +145,7 @@ report_to_manager() {
     local issue_number="$1"
     local problem="$2"
 
-    ./agent-send.sh issue-manager "【Issue #${issue_number} 課題報告】Worker${WORKER_NUM}
+    ./claude/agent-send.sh issue-manager "【Issue #${issue_number} 課題報告】Worker${WORKER_NUM}
 
     ## 発生した問題
     ${problem}
@@ -200,7 +200,7 @@ create_pr_and_complete() {
         echo "❌ PR #${pr_number}にconflictが検出されました"
 
         # Issue Managerに報告
-        ./agent-send.sh issue-manager "【Issue #${issue_number} Conflict報告】Worker${WORKER_NUM}
+        ./claude/agent-send.sh issue-manager "【Issue #${issue_number} Conflict報告】Worker${WORKER_NUM}
 
 ## ⚠️ Merge Conflict発生
 PR #${pr_number}でmerge conflictが発生しました。
@@ -239,7 +239,7 @@ conflictを解決してPRを更新します。少しお待ちください。"
                 echo "$check_status"
 
                 # Issue Managerに報告
-                ./agent-send.sh issue-manager "【Issue #${issue_number} CI失敗報告】Worker${WORKER_NUM}
+                ./claude/agent-send.sh issue-manager "【Issue #${issue_number} CI失敗報告】Worker${WORKER_NUM}
 
 ## ❌ GitHub Actions失敗
 PR #${pr_number}のGitHub Actions workflowsが失敗しました。
@@ -267,7 +267,7 @@ ${check_status}
         echo "⏰ GitHub Actionsのタイムアウト（10分経過）"
 
         # Issue Managerに報告
-        ./agent-send.sh issue-manager "【Issue #${issue_number} CI タイムアウト報告】Worker${WORKER_NUM}
+        ./claude/agent-send.sh issue-manager "【Issue #${issue_number} CI タイムアウト報告】Worker${WORKER_NUM}
 
 ## ⏰ GitHub Actions タイムアウト
 PR #${pr_number}のGitHub Actions workflowsが10分以内に完了しませんでした。
@@ -311,7 +311,7 @@ report_completion_to_manager() {
     rm -rf worktree/issue-${issue_number} 2>/dev/null || true
 
     # Issue Manager への完了報告
-    ./agent-send.sh issue-manager "【Issue #${issue_number} 完了報告】Worker${WORKER_NUM}
+    ./claude/agent-send.sh issue-manager "【Issue #${issue_number} 完了報告】Worker${WORKER_NUM}
 
 ## 📋 Issue概要
 Issue #${issue_number}のPR作成しました。
