@@ -154,7 +154,12 @@ setup_worker_environment() {
     echo "=== Worker${worker_num} 環境セットアップ開始 ==="
     echo "Issue #${issue_number}: ${issue_title}"
 
-    # 1. worktreeディレクトリの作成
+    # 1. exit from claude if in a session
+
+    echo "=== Workers${worker_num} exit Claude if in session ==="
+    safe_exit_worker_claude "$worker_num"
+
+    # 2. worktreeディレクトリの作成
     local worktree_path="worktree/issue-${issue_number}"
 
     if git worktree list | grep -q "${worktree_path}"; then
@@ -170,7 +175,7 @@ setup_worker_environment() {
         git worktree add ${worktree_path} -b issue-${issue_number}
     fi
 
-    # 2. worktree安全性チェック
+    # 3. worktree安全性チェック
     echo "=== worktree安全性チェック ==="
     if [ ! -d "${worktree_path}" ]; then
         echo "❌ エラー: worktreeディレクトリが作成されていません"
@@ -185,7 +190,7 @@ setup_worker_environment() {
         echo "⚠️  警告: worktreeが期待通りに分離されていません"
     fi
 
-    # 3. 既存のworker Claudeセッションを終了し、worktreeディレクトリで再起動
+    # 4. workdirへ移動
     echo "worktree/issue-${issue_number}ディレクトリでClaude Codeを再起動します"
     echo ""
     echo "【重要な安全対策】"
@@ -195,31 +200,14 @@ setup_worker_environment() {
     echo ""
     echo "【自動実行手順】"
 
-    # 1. Worker Claude状態確認と適切な処理
-    echo "1. worker${worker_num}のClaude状態確認"
-    local current_command=$(tmux display-message -p -t "multiagent:0.${worker_num}" "#{pane_current_command}")
+    echo "✅ worker${worker_num}はシェルモード: $current_command"
+    echo "2. worktreeディレクトリに移動"
+    tmux send-keys -t "multiagent:0.${worker_num}" "cd ${PWD}/${worktree_path}" C-m
 
-    if [[ "$current_command" == "zsh" ]] || [[ "$current_command" == "bash" ]] || [[ "$current_command" == "sh" ]]; then
-        echo "✅ worker${worker_num}はシェルモード: $current_command"
-        echo "2. worktreeディレクトリに移動"
-        tmux send-keys -t "multiagent:0.${worker_num}" "cd ${PWD}/${worktree_path}" C-m
+    echo "3. worktreeディレクトリでClaude Code起動"
+    tmux send-keys -t "multiagent:0.${worker_num}" "claude --dangerously-skip-permissions" C-m
+    sleep 3
 
-        echo "3. worktreeディレクトリでClaude Code起動"
-        tmux send-keys -t "multiagent:0.${worker_num}" "claude --dangerously-skip-permissions" C-m
-        sleep 3
-    else
-        echo "✅ worker${worker_num}でClaude系プロセス実行中: $current_command"
-        echo "2. Claudeからの安全終了指示"
-        ./claude/agent-send.sh worker${worker_num} "exit"
-        sleep 3
-
-        echo "3. worktreeディレクトリに移動"
-        tmux send-keys -t "multiagent:0.${worker_num}" "cd ${PWD}/${worktree_path}" C-m
-
-        echo "4. worktreeディレクトリでClaude Code再起動"
-        tmux send-keys -t "multiagent:0.${worker_num}" "claude --dangerously-skip-permissions" C-m
-        sleep 3
-    fi
     echo ""
     echo "5. worker${worker_num}セッションが起動したら、以下のメッセージを送信:"
     echo ""
