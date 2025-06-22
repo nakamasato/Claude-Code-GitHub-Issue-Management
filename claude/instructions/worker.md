@@ -135,18 +135,7 @@ verify_issue_environment() {
         return 1
     fi
 
-    # 3. 依存関係確認（必要に応じて）
-    if [ -f "package.json" ]; then
-        echo "Node.js プロジェクトを検出。依存関係を確認中..."
-        if [ ! -d "node_modules" ]; then
-            echo "依存関係をインストール中..."
-            npm install
-        else
-            echo "✅ 依存関係は既にインストール済みです"
-        fi
-    fi
-
-    # 4. Issue詳細確認
+    # 3. Issue詳細確認
     echo "=== Issue詳細 ==="
     gh issue view ${issue_number}
 
