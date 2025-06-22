@@ -130,6 +130,11 @@ for ((i=0; i<=WORKER_COUNT; i++)); do
     tmux send-keys -t "multiagent:0.$i" "echo '=== ${PANE_TITLE} エージェント ==='" C-m
 done
 
+# Claude Code起動
+for ((i=0; i<=WORKER_COUNT; i++)); do
+    tmux send-keys -t "multiagent:0.$i" "claude --dangerously-skip-permissions" C-m
+done
+
 log_success "✅ multiagentセッション作成完了"
 echo ""
 
@@ -150,29 +155,23 @@ echo "📋 ペイン構成:"
 echo "  multiagentセッション（${TOTAL_PANES}ペイン）:"
 echo "    Pane 0: issue-manager (GitHub Issue管理者)"
 for ((i=1; i<=WORKER_COUNT; i++)); do
-    echo "    Pane $i: worker$i       (Issue解決担当者$(printf '\x$(printf %x $((i+64)))'))"
+    echo "    Pane $i: worker$i       (Issue解決担当者#$i)"
 done
 
 echo ""
 log_success "🎉 GitHub Issue管理システム環境セットアップ完了！"
 echo ""
 echo "📋 次のステップ:"
-echo "  1. 🤖 Claude Code起動:"
-echo "     # Issue Manager起動"
-echo "     tmux send-keys -t multiagent:0.0 'claude --dangerously-skip-permissions' C-m"
-echo "     # Worker一括起動"
-echo "     for i in {1..$WORKER_COUNT}; do tmux send-keys -t multiagent:0.\$i 'claude --dangerously-skip-permissions' C-m; done"
-echo ""
-echo "  2. 🔗 セッションアタッチ:"
+echo "  1. 🔗 セッションアタッチ:"
 echo "     tmux attach-session -t multiagent   # GitHub Issue管理システム確認"
 echo ""
-echo "  3. 📜 指示書確認:"
+echo "  2. 📜 指示書確認:"
 echo "     Issue Manager: instructions/issue-manager.md"
 echo "     worker1-${WORKER_COUNT}: instructions/worker.md"
 echo "     システム構造: CLAUDE.md"
 echo ""
-echo "  4. 🎯 システム起動: Issue Managerに「あなたはissue-managerです。指示書に従ってGitHub Issueの監視を開始してください」と入力"
+echo "  3. 🎯 システム起動: Issue Managerに「あなたはissue-managerです。指示書に従ってGitHub Issueの監視を開始してください」と入力"
 echo ""
-echo "  5. 📋 GitHub設定確認:"
+echo "  4. 📋 GitHub設定確認:"
 echo "     gh auth status  # GitHub CLI認証確認"
 echo "     gh repo view     # リポジトリ確認"
