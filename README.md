@@ -4,9 +4,11 @@ GitHub Issueを自動管理する、AI駆動の開発ワークフローシステ
 
 [Claude Code エージェント通信システム](https://github.com/Akira-Papa/Claude-Code-Communication)にヒントを得て、もともと手元でやっていたGitHub Issueを作ってそれをClaude Codeに解決してもらうやり方をAI Workerで実行できるようにしました。
 
-## 📌 これは何？
+## Demo
 
-**3行で説明すると：**
+![](demo.gif)
+
+**機能**
 1. GitHub Issueを自動監視・管理するAI Issue Managerと複数のWorkerが協力（デフォルト3、setup.shで指定可能）
 2. IssueがオープンされるとWorkerに自動アサイン、解決後に自動PR作成
 3. 完全自動化されたGitHub Issue → PR → マージのワークフロー
@@ -136,9 +138,9 @@ graph TB
     end
 ```
 
-## 🎬 5分で動かしてみよう！
+## Getting Started
 
-### 必要なもの
+### Prerequisite
 - Mac または Linux
 - tmux（ターミナル分割ツール）: `brew install tmux`
 
