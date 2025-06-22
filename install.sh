@@ -222,7 +222,9 @@ show_post_install_instructions() {
     echo ""
     echo "1. 📄 Add the following content to your CLAUDE.md file:"
     echo ""
+    echo "======== CLAUDE.md Content Start ========"
     get_claude_content
+    echo "======== CLAUDE.md Content End ========"
     echo ""
     echo "2. 🔧 Setup tmux environment:"
     echo "   ./claude/setup.sh"
