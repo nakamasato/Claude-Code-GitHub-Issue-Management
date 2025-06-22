@@ -94,13 +94,18 @@ check_worker_claude_status() {
 
     # tmuxペインが存在するかチェック
     if tmux list-panes -t "multiagent:0.${worker_num}" >/dev/null 2>&1; then
-        # ペインの現在のコマンドを確認（claude が実行中かチェック）
-        local current_command=$(tmux display-message -t "multiagent:0.${worker_num}" -p '#{pane_current_command}')
-        if [[ "$current_command" == "claude" ]]; then
+        # ペインの現在のコマンドを確認
+        local current_command=$(tmux display-message -p -t "multiagent:0.${worker_num}" "#{pane_current_command}")
+
+        if [[ "$current_command" == "zsh" ]] || [[ "$current_command" == "bash" ]] || [[ "$current_command" == "sh" ]]; then
+            echo "ℹ️  worker${worker_num}はシェルモード（Claude未起動）: $current_command"
+            claude_running=false
+        elif [[ "$current_command" == "node" ]] || [[ "$current_command" == "claude" ]]; then
+            echo "✅ worker${worker_num}でClaude実行中を検出: $current_command"
             claude_running=true
-            echo "✅ worker${worker_num}でClaude実行中を検出"
         else
-            echo "ℹ️  worker${worker_num}はシェルモード（Claude未起動）"
+            echo "ℹ️  worker${worker_num}の不明なプロセス: $current_command (シェルモードとして扱います)"
+            claude_running=false
         fi
     else
         echo "❌ worker${worker_num}ペインが見つかりません"
@@ -120,14 +125,20 @@ safe_exit_worker_claude() {
     local worker_num="$1"
 
     echo "worker${worker_num}のClaude状態確認中..."
-    if check_worker_claude_status "$worker_num"; then
-        echo "worker${worker_num}のClaude終了指示送信中..."
+    local current_command=$(tmux display-message -p -t "multiagent:0.${worker_num}" "#{pane_current_command}")
+
+    if [[ "$current_command" == "zsh" ]] || [[ "$current_command" == "bash" ]] || [[ "$current_command" == "sh" ]]; then
+        echo "ℹ️  worker${worker_num}は既にシェルモード: $current_command (終了処理スキップ)"
+        return 1
+    elif [[ "$current_command" == "node" ]] || [[ "$current_command" == "claude" ]]; then
+        echo "✅ worker${worker_num}でClaude系プロセス実行中: $current_command"
+        echo "Claudeからの安全終了指示送信中..."
         ./claude/agent-send.sh worker${worker_num} "exit"
         sleep 3
         echo "✅ Claude終了指示完了"
         return 0
     else
-        echo "Claudeが起動していないため、終了処理をスキップ"
+        echo "ℹ️  worker${worker_num}の不明なプロセス: $current_command (終了処理スキップ)"
         return 1
     fi
 }
@@ -184,18 +195,33 @@ setup_worker_environment() {
     echo ""
     echo "【自動実行手順】"
 
-    # 1. Worker Claude安全終了
-    echo "1. worker${worker_num}のClaude安全終了処理"
-    safe_exit_worker_claude "$worker_num"
+    # 1. Worker Claude状態確認と適切な処理
+    echo "1. worker${worker_num}のClaude状態確認"
+    local current_command=$(tmux display-message -p -t "multiagent:0.${worker_num}" "#{pane_current_command}")
 
-    echo "2. worktreeディレクトリに移動"
-    tmux send-keys -t "multiagent:0.${worker_num}" "cd ${PWD}/${worktree_path}" C-m
+    if [[ "$current_command" == "zsh" ]] || [[ "$current_command" == "bash" ]] || [[ "$current_command" == "sh" ]]; then
+        echo "✅ worker${worker_num}はシェルモード: $current_command"
+        echo "2. worktreeディレクトリに移動"
+        tmux send-keys -t "multiagent:0.${worker_num}" "cd ${PWD}/${worktree_path}" C-m
 
-    echo "3. worktreeディレクトリでClaude Code再起動"
-    tmux send-keys -t "multiagent:0.${worker_num}" "claude --dangerously-skip-permissions" C-m
-    sleep 3
+        echo "3. worktreeディレクトリでClaude Code起動"
+        tmux send-keys -t "multiagent:0.${worker_num}" "claude --dangerously-skip-permissions" C-m
+        sleep 3
+    else
+        echo "✅ worker${worker_num}でClaude系プロセス実行中: $current_command"
+        echo "2. Claudeからの安全終了指示"
+        ./claude/agent-send.sh worker${worker_num} "exit"
+        sleep 3
+
+        echo "3. worktreeディレクトリに移動"
+        tmux send-keys -t "multiagent:0.${worker_num}" "cd ${PWD}/${worktree_path}" C-m
+
+        echo "4. worktreeディレクトリでClaude Code再起動"
+        tmux send-keys -t "multiagent:0.${worker_num}" "claude --dangerously-skip-permissions" C-m
+        sleep 3
+    fi
     echo ""
-    echo "4. worker${worker_num}セッションが起動したら、以下のメッセージを送信:"
+    echo "5. worker${worker_num}セッションが起動したら、以下のメッセージを送信:"
     echo ""
     echo "=== Worker${worker_num}用メッセージ ==="
     echo "あなたはworker${worker_num}です。"
