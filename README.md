@@ -159,17 +159,17 @@ graph TB
 
 ### 手順
 
-#### 1️⃣ ダウンロード（30秒）
+#### 1️⃣ インストール（30秒）
 ```bash
-gh repo clone nakamasato/Claude-Code-GitHub-Issue−Management
-cd Claude-Code-GitHub-Issue−Management
+# シングルコマンドでインストール
+curl -sSL https://raw.githubusercontent.com/nakamasato/Claude-Code-Communication/main/install.sh | bash
 ```
 
 #### 2️⃣ 環境構築（1分）
 ```bash
-./setup.sh          # デフォルト: 3 workers
+./claude/setup.sh          # デフォルト: 3 workers
 # または
-./setup.sh 5        # 5 workers
+./claude/setup.sh 5        # 5 workers
 ```
 これでバックグラウンドに指定した数のターミナル画面が準備されます！
 
@@ -233,13 +233,13 @@ Issue Manager画面で入力(defaultでは assignee:@me のissueが対象)：
 
 ### メッセージの送り方
 ```bash
-./agent-send.sh [相手の名前] "[メッセージ]"
+./claude/agent-send.sh [相手の名前] "[メッセージ]"
 
 # 例：Issue Managerに送る
-./agent-send.sh issue-manager "GitHub Issue確認をお願いします"
+./claude/agent-send.sh issue-manager "GitHub Issue確認をお願いします"
 
 # 例：Worker1に送る
-./agent-send.sh worker1 "Issue #123をアサインしました"
+./claude/agent-send.sh worker1 "Issue #123をアサインしました"
 ```
 
 ### 実際のやり取りの例
@@ -295,10 +295,10 @@ PR #45 を作成済みです。
 
 ## 📁 重要なファイルの説明
 
-### 指示書（instructions/）
+### 指示書（claude/instructions/）
 各エージェントの行動マニュアルです
 
-**issue-manager.md** - Issue Manager指示書
+**claude/instructions/issue-manager.md** - Issue Manager指示書
 ```markdown
 # あなたの役割
 GitHub Issueを常に監視し、効率的にWorkerに作業をアサインして
@@ -312,7 +312,7 @@ GitHub Issueを常に監視し、効率的にWorkerに作業をアサインし�
 5. 進捗管理: 報告受信とPR確認
 ```
 
-**worker.md** - Worker指示書
+**claude/instructions/worker.md** - Worker指示書
 ```markdown
 # あなたの役割
 GitHub Issueの解決を専門とする開発者として、

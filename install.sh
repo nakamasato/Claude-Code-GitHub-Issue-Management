@@ -103,7 +103,6 @@ download_files() {
         "agent-send.sh"
         "setup.sh"
         "local-verification.md"
-        "CLAUDE.md"
     )
 
     for file in "${files[@]}"; do
@@ -120,11 +119,14 @@ download_files() {
 }
 
 
-# Generate CLAUDE.md with correct paths
-generate_claude_md() {
-    log_info "Generating CLAUDE.md with correct paths..."
+# Generate installation instructions for CLAUDE.md
+generate_claude_instructions() {
+    log_info "Preparing CLAUDE.md content..."
 
-    cat > "CLAUDE.md" << 'EOF'
+    cat > "claude-system-content.md" << 'EOF'
+
+---
+
 # GitHub Issue Management System
 
 ## エージェント構成
@@ -144,7 +146,7 @@ generate_claude_md() {
 GitHub Issues → issue-manager → workers → issue-manager → GitHub PRs
 EOF
 
-    log_success "CLAUDE.md generated successfully"
+    log_success "CLAUDE.md content prepared"
 }
 
 # Update .gitignore
@@ -206,8 +208,8 @@ install_system() {
     # Download files from GitHub
     download_files "$target_dir"
 
-    # Generate CLAUDE.md
-    generate_claude_md
+    # Generate CLAUDE.md instructions
+    generate_claude_instructions
 
     # Update .gitignore
     update_gitignore
@@ -222,21 +224,21 @@ show_post_install_instructions() {
     echo "======================="
     echo ""
     echo "📁 Files installed in: ./claude/"
-    echo "📄 Main configuration: ./CLAUDE.md"
     echo ""
     echo "📋 Next steps:"
     echo ""
-    echo "1. 🔧 Setup tmux environment:"
+    echo "1. 📄 Add the following content to your CLAUDE.md file:"
+    echo ""
+    cat claude-system-content.md
+    echo ""
+    echo "2. 🔧 Setup tmux environment:"
     echo "   ./claude/setup.sh"
     echo ""
-    echo "2. 🚀 Start Claude Code with:"
+    echo "3. 🚀 Start Claude Code with:"
     echo "   claude"
     echo ""
-    echo "3. 📊 Monitor GitHub Issues:"
-    echo "   The issue-manager agent will help you manage GitHub Issues automatically"
-    echo ""
-    echo "📚 Documentation:"
-    echo "   https://github.com/nakamasato/Claude-Code-Communication/blob/main/INSTALLATION.md"
+    echo "4. 📊 Begin GitHub Issue management:"
+    echo "   あなたはissue-managerです。指示書に従ってGitHub Issueの監視を開始してください。"
     echo ""
     echo "✨ The system is ready to use!"
 }
