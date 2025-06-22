@@ -125,19 +125,25 @@ setup_worker_environment() {
         echo "⚠️  警告: worktreeが期待通りに分離されていません"
     fi
 
-    # 3. worktreeディレクトリでClaude Codeを起動
-    echo "worktree/issue-${issue_number}ディレクトリでClaude Codeを起動します"
+    # 3. 既存のworker Claudeセッションを終了し、worktreeディレクトリで再起動
+    echo "worktree/issue-${issue_number}ディレクトリでClaude Codeを再起動します"
     echo ""
     echo "【重要な安全対策】"
     echo "- workerは ${PWD}/${worktree_path} ディレクトリから外に出ることを禁止"
     echo "- mainブランチの直接編集を禁止"
     echo "- 作業はissue-${issue_number}ブランチでのみ実行"
     echo ""
-    echo "【手順】"
-    echo "1. 新しいターミナルタブを開く"
-    echo "2. 以下のコマンドを実行:"
-    echo "   cd ${PWD}/${worktree_path}"
-    echo "   claude-code --session worker${worker_num}"
+    echo "【自動実行手順】"
+    echo "1. worker${worker_num}の既存Claudeセッションを終了"
+    tmux send-keys -t "multiagent:0.${worker_num}" "exit" C-m
+    sleep 2
+
+    echo "2. worktreeディレクトリに移動"
+    tmux send-keys -t "multiagent:0.${worker_num}" "cd ${PWD}/${worktree_path}" C-m
+
+    echo "3. worktreeディレクトリでClaude Code再起動"
+    tmux send-keys -t "multiagent:0.${worker_num}" "claude --dangerously-skip-permissions" C-m
+    sleep 3
     echo ""
     echo "3. worker${worker_num}セッションが起動したら、以下のメッセージを送信:"
     echo ""
@@ -287,10 +293,24 @@ handle_worker_completion() {
         fi
     fi
 
-    # Worker状況ファイル削除（作業完了）
+    # Worker Claude セッション終了とworktree環境クリーンアップ
+    echo "=== Worker${worker_num} Claude終了とクリーンアップ ==="
+
+    # 1. Worker Claude セッションを終了
+    tmux send-keys -t "multiagent:0.${worker_num}" "exit" C-m
+    sleep 2
+
+    # 2. 元のルートディレクトリに戻る
+    tmux send-keys -t "multiagent:0.${worker_num}" "cd $(pwd)" C-m
+
+    # 3. 待機メッセージ表示
+    tmux send-keys -t "multiagent:0.${worker_num}" "echo '=== worker${worker_num} 待機中 ==='" C-m
+    tmux send-keys -t "multiagent:0.${worker_num}" "echo 'Issue Managerからの次の割り当てをお待ちください'" C-m
+
+    # 4. Worker状況ファイル削除（作業完了）
     rm -f ./tmp/worker-status/worker${worker_num}_busy.txt
 
-    # Worktreeクリーンアップ（必要に応じて）
+    # 5. Worktreeクリーンアップ（必要に応じて）
     if [ -d "worktree/issue-${issue_number}" ]; then
         echo "worktree/issue-${issue_number}をクリーンアップ中..."
         git worktree remove worktree/issue-${issue_number} --force 2>/dev/null || true
