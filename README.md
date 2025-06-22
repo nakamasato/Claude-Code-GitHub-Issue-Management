@@ -160,9 +160,25 @@ graph TB
 ### 手順
 
 #### 1️⃣ インストール（30秒）
+**対象のGitレポでインストール**
 ```bash
 # シングルコマンドでインストール
 curl -sSL https://raw.githubusercontent.com/nakamasato/Claude-Code-Communication/main/install.sh | bash
+```
+
+インストール完了後のファイル構成：
+```
+your-project/
+├── claude/                     # GitHub Issue管理システム
+│   ├── instructions/
+│   │   ├── issue-manager.md   # Issue Manager指示書
+│   │   └── worker.md          # Worker指示書
+│   ├── agent-send.sh          # エージェント間通信スクリプト
+│   ├── setup.sh               # tmux環境セットアップ
+│   └── local-verification.md  # ローカル動作確認手順
+├── CLAUDE.md                   # メイン設定ファイル（要手動追記）
+├── .gitignore                  # 自動更新（worktree/,tmp/,logs/追加）
+└── claude-system-content.md    # CLAUDE.mdに追記する内容
 ```
 
 #### 2️⃣ 環境構築（1分）
