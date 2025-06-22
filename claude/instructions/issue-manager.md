@@ -59,7 +59,7 @@ fi
 ### 3. Issue割り当てロジック
 ```bash
 # 利用可能なWorkerを見つけてIssueをAssignし、必須の環境セットアップを実行
-assign_issue_with_environment() {
+assign_issue() {
     local issue_number="$1"
     local issue_title="$2"
 
@@ -113,11 +113,6 @@ assign_issue_with_environment() {
     fi
 }
 
-# 後方互換性のため従来の関数名でも呼び出し可能（非推奨）
-assign_issue() {
-    echo "⚠️  警告: assign_issue()は非推奨です。assign_issue_with_environment()を使用してください"
-    assign_issue_with_environment "$@"
-}
 ```
 
 ## Worker環境セットアップ
@@ -598,7 +593,7 @@ monitor_issues_with_filter() {
             read -p "Issue #${issue_num} を自分にアサインしますか？ (y/N): " -n 1 -r
             echo
             if [[ $REPLY =~ ^[Yy]$ ]]; then
-                assign_issue_with_environment "$issue_num" "$issue_title"
+                assign_issue "$issue_num" "$issue_title"
             else
                 echo "Issue #${issue_num} をスキップしました"
             fi
@@ -690,7 +685,7 @@ monitor_issues_with_filter "assignee:@me label:bug"
 ## 使用ガイドライン
 
 ### Issue割り当て時の推奨手順
-1. **必須**: `assign_issue_with_environment()` を使用（`assign_issue()`は非推奨）
+1. **必須**: `assign_issue()` を使用
 2. **推奨**: 割り当て前に `check_worker_load()` でWorker状況を確認
 3. **推奨**: 定期的に `check_worker_environment_status()` で環境セットアップ状況を確認
 
@@ -698,7 +693,7 @@ monitor_issues_with_filter "assignee:@me label:bug"
 1. エラーメッセージを確認し、原因を特定
 2. Workerの tmux セッション状況を確認
 3. 必要に応じて手動でセットアップ手順を実行
-4. 問題が解決したら再度 `assign_issue_with_environment()` を実行
+4. 問題が解決したら再度 `assign_issue()` を実行
 
 ### 安全性確保のためのチェックポイント
 - ✅ Worker環境セットアップが完了していることを確認
