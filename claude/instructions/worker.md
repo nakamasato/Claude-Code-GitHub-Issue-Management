@@ -135,6 +135,9 @@ verify_issue_environment() {
         return 1
     fi
 
+    # 2. 依存関係インストール（設定可能なスクリプトを実行）
+    ./claude/setup_environment_command.sh
+
     # 3. Issue詳細確認
     echo "=== Issue詳細 ==="
     gh issue view ${issue_number}
