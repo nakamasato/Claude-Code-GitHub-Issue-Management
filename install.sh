@@ -81,32 +81,10 @@ check_prerequisites() {
     log_success "Prerequisites check completed"
 }
 
-# Select installation method
-select_installation_method() {
-    echo ""
-    echo "📦 Select installation method:"
-    echo "1) Local files (use files from current repository)"
-    echo "2) Remote download (download latest from GitHub)"
-    echo ""
-
-    while true; do
-        read -p "Choice (1-2): " choice
-        case $choice in
-            1)
-                INSTALL_METHOD="local"
-                log_info "Local installation selected"
-                break
-                ;;
-            2)
-                INSTALL_METHOD="remote"
-                log_info "Remote installation selected"
-                break
-                ;;
-            *)
-                echo "Please select 1 or 2"
-                ;;
-        esac
-    done
+# Set installation method to remote only
+set_installation_method() {
+    INSTALL_METHOD="remote"
+    log_info "Using remote installation (downloading latest from GitHub)"
 }
 
 # Download files from GitHub
@@ -141,33 +119,6 @@ download_files() {
     log_success "Files downloaded successfully"
 }
 
-# Copy files from local repository
-copy_local_files() {
-    local target_dir="$1"
-    local source_dir="claude"
-
-    log_info "Copying files from local repository..."
-
-    # Check if claude directory exists
-    if [ ! -d "$source_dir" ]; then
-        log_error "Local 'claude' directory not found"
-        echo "Please ensure you're running this script from the repository root"
-        exit 1
-    fi
-
-    # Use rsync if available, otherwise use tar
-    if command -v rsync &> /dev/null; then
-        rsync -av "${source_dir}/" "${target_dir}/"
-    else
-        # Use tar for reliable copying
-        (cd "$source_dir" && tar cf - .) | (mkdir -p "$target_dir" && cd "$target_dir" && tar xf -)
-    fi
-
-    # Ensure shell scripts are executable
-    chmod +x "${target_dir}/agent-send.sh" "${target_dir}/setup.sh" 2>/dev/null || true
-
-    log_success "Local files copied successfully"
-}
 
 # Generate CLAUDE.md with correct paths
 generate_claude_md() {
@@ -252,15 +203,8 @@ install_system() {
     # Create target directory
     mkdir -p "$target_dir"
 
-    # Install files based on selected method
-    case $INSTALL_METHOD in
-        "local")
-            copy_local_files "$target_dir"
-            ;;
-        "remote")
-            download_files "$target_dir"
-            ;;
-    esac
+    # Download files from GitHub
+    download_files "$target_dir"
 
     # Generate CLAUDE.md
     generate_claude_md
@@ -300,7 +244,7 @@ show_post_install_instructions() {
 # Main execution
 main() {
     check_prerequisites
-    select_installation_method
+    set_installation_method
     install_system
     show_post_install_instructions
 }
