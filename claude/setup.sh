@@ -159,12 +159,12 @@ for ((i=0; i<=WORKER_COUNT; i++)); do
     # ペインタイトル取得
     if [ $i -eq 0 ]; then
         PANE_TITLE="issue-manager"
-        # issue-manager: 緑色
-        tmux send-keys -t "multiagent:0.$i" "export PS1='(\[\033[1;32m\]${PANE_TITLE}\[\033[0m\]) \[\033[1;32m\]\w\[\033[0m\]\$ '" C-m
+        # issue-manager: 緑色プロンプト
+        tmux send-keys -t "multiagent:0.$i" "export PS1='\033[1;32m(${PANE_TITLE})\033[0m \033[1;32m\w\033[0m\$ '" C-m
     else
         PANE_TITLE="worker$i"
-        # workers: 青色
-        tmux send-keys -t "multiagent:0.$i" "export PS1='(\[\033[1;34m\]${PANE_TITLE}\[\033[0m\]) \[\033[1;32m\]\w\[\033[0m\]\$ '" C-m
+        # workers: 青色プロンプト
+        tmux send-keys -t "multiagent:0.$i" "export PS1='\033[1;34m(${PANE_TITLE})\033[0m \033[1;32m\w\033[0m\$ '" C-m
     fi
 
     # ウェルカムメッセージ
