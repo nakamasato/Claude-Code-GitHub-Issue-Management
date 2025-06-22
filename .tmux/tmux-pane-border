@@ -1,0 +1,44 @@
+# !/bin/zsh
+
+bg_lightgreen="#[fg=colour0,bg=colour120]"
+fg_lightgreen="#[fg=colour120,bg=colour16]"
+fg_red="#[fg=colour198,bg=colour16]"
+
+# gitの情報を収集
+if git_status=$(cd $1 && git status 2>/dev/null ); then
+  git_branch="$(git -C $1 branch --show-current)"
+
+  # mainブランチで作業しているか
+  if [[ $git_branch = "main" ]]; then
+    fg_git=$fg_red
+  else
+    fg_git=$fg_lightgreen
+  fi
+
+  # git status コマンドの出力テキストからステータスを判定
+  case $git_status in
+    *Changes\ not\ staged* ) git_status="+" ;;
+    *Changes\ to\ be\ committed* ) git_status="++" ;;
+    *currently\ editing\ a\ commit\ while\ rebasing* ) git_status="in progress(rebase)" ;;
+    *interactive\ rebase\ in\ progress* ) git_status="in progress(rebase)" ;;
+    *currently\ cherry-picking\ commit* ) git_status="in progress(cherry-pick)" ;;
+    * ) git_status="---" ;;
+  esac
+
+  if [[ $git_status == "---" ]]; then
+    fg_git_status=$fg_lightgreen
+  else
+    fg_git_status=$fg_red
+  fi
+else
+  git_branch="---"
+  fg_git=$fg_lightgreen
+  git_status="---"
+  fg_git_status=$fg_lightgreen
+fi
+
+# 現在のディレクトリ名（basename）
+current_dir_name=$(basename "$1")
+
+# 連結して出力
+echo "$bg_lightgreen DIR $fg_lightgreen $current_dir_name $bg_lightgreen BRANCH $fg_git $git_branch $bg_lightgreen STATUS $fg_git_status $git_status "

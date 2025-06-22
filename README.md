@@ -151,6 +151,9 @@ graph TB
     # ダブルクリックでタイルレイアウトに変更
     bind -n DoubleClick1Pane select-layout tiled
     ```
+
+    詳細設定: [.tmux](.tmux/README.md)
+
 - Claude Code CLI
 - gh CLI（GitHub CLI）
 
@@ -170,24 +173,14 @@ cd Claude-Code-GitHub-Issue−Management
 ```
 これでバックグラウンドに指定した数のターミナル画面が準備されます！
 
+Claude Codeは既に全ペインで起動済みです！ブラウザでのClaude認証が必要な場合があります。
+
 #### 3️⃣ Issue Manager画面を開いてAI起動（2分）
 
 **Issue Manager画面を開く：**
 ```bash
 tmux attach-session -t multiagent
 ```
-
-**Issue Manager画面でClaudeを起動：**
-```bash
-# ブラウザで認証が必要
-claude --dangerously-skip-permissions
-```
-
-#### 4️⃣ システム確認
-```bash
-tmux attach-session -t multiagent
-```
-Claude Codeは既に全ペインで起動済みです！ブラウザでのClaude認証が必要な場合があります。
 
 指定したworker数に応じた分割画面が表示されます（デフォルト: issue-manager + 3 workers）：
 ```
@@ -198,7 +191,7 @@ Claude Codeは既に全ペインで起動済みです！ブラウザでのClaude
 └─────────────┴─────────────┘
 ```
 
-#### 5️⃣ GitHub Issue管理開始（30秒）
+#### 4️⃣ GitHub Issue管理開始（30秒）
 
 Issue Manager画面で入力(defaultでは assignee:@me のissueが対象)：
 ```
