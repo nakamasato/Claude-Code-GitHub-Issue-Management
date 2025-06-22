@@ -84,6 +84,55 @@ assign_issue() {
 ```
 
 ## Worker環境セットアップ
+
+### 0. 共通関数
+```bash
+# Worker Claudeの実行状態確認関数
+check_worker_claude_status() {
+    local worker_num="$1"
+    local claude_running=false
+
+    # tmuxペインが存在するかチェック
+    if tmux list-panes -t "multiagent:0.${worker_num}" >/dev/null 2>&1; then
+        # ペインの現在のコマンドを確認（claude が実行中かチェック）
+        local current_command=$(tmux display-message -t "multiagent:0.${worker_num}" -p '#{pane_current_command}')
+        if [[ "$current_command" == "claude" ]]; then
+            claude_running=true
+            echo "✅ worker${worker_num}でClaude実行中を検出"
+        else
+            echo "ℹ️  worker${worker_num}はシェルモード（Claude未起動）"
+        fi
+    else
+        echo "❌ worker${worker_num}ペインが見つかりません"
+        return 2
+    fi
+
+    # 戻り値: 0=Claude実行中, 1=シェルモード, 2=ペイン不存在
+    if [ "$claude_running" = true ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Worker Claude安全終了関数
+safe_exit_worker_claude() {
+    local worker_num="$1"
+
+    echo "worker${worker_num}のClaude状態確認中..."
+    if check_worker_claude_status "$worker_num"; then
+        echo "worker${worker_num}のClaude終了指示送信中..."
+        ./claude/agent-send.sh worker${worker_num} "exit"
+        sleep 3
+        echo "✅ Claude終了指示完了"
+        return 0
+    else
+        echo "Claudeが起動していないため、終了処理をスキップ"
+        return 1
+    fi
+}
+```
+
 ### 1. Worker初期化処理
 ```bash
 setup_worker_environment() {
@@ -134,9 +183,10 @@ setup_worker_environment() {
     echo "- 作業はissue-${issue_number}ブランチでのみ実行"
     echo ""
     echo "【自動実行手順】"
-    echo "1. worker${worker_num}の既存Claudeセッションを終了"
-    tmux send-keys -t "multiagent:0.${worker_num}" "exit" C-m
-    sleep 2
+
+    # 1. Worker Claude安全終了
+    echo "1. worker${worker_num}のClaude安全終了処理"
+    safe_exit_worker_claude "$worker_num"
 
     echo "2. worktreeディレクトリに移動"
     tmux send-keys -t "multiagent:0.${worker_num}" "cd ${PWD}/${worktree_path}" C-m
@@ -145,7 +195,7 @@ setup_worker_environment() {
     tmux send-keys -t "multiagent:0.${worker_num}" "claude --dangerously-skip-permissions" C-m
     sleep 3
     echo ""
-    echo "3. worker${worker_num}セッションが起動したら、以下のメッセージを送信:"
+    echo "4. worker${worker_num}セッションが起動したら、以下のメッセージを送信:"
     echo ""
     echo "=== Worker${worker_num}用メッセージ ==="
     echo "あなたはworker${worker_num}です。"
@@ -296,9 +346,9 @@ handle_worker_completion() {
     # Worker Claude セッション終了とworktree環境クリーンアップ
     echo "=== Worker${worker_num} Claude終了とクリーンアップ ==="
 
-    # 1. Worker Claude セッションを終了
-    tmux send-keys -t "multiagent:0.${worker_num}" "exit" C-m
-    sleep 2
+    # 1. Worker Claude安全終了
+    echo "1. worker${worker_num}のClaude安全終了処理"
+    safe_exit_worker_claude "$worker_num"
 
     # 2. 元のルートディレクトリに戻る
     tmux send-keys -t "multiagent:0.${worker_num}" "cd $(pwd)" C-m
