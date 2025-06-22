@@ -119,11 +119,9 @@ download_files() {
 }
 
 
-# Generate installation instructions for CLAUDE.md
-generate_claude_instructions() {
-    log_info "Preparing CLAUDE.md content..."
-
-    cat > "claude-system-content.md" << 'EOF'
+# Store CLAUDE.md content for display
+get_claude_content() {
+    cat << 'EOF'
 
 ---
 
@@ -145,8 +143,6 @@ generate_claude_instructions() {
 ## 基本フロー
 GitHub Issues → issue-manager → workers → issue-manager → GitHub PRs
 EOF
-
-    log_success "CLAUDE.md content prepared"
 }
 
 # Update .gitignore
@@ -208,9 +204,6 @@ install_system() {
     # Download files from GitHub
     download_files "$target_dir"
 
-    # Generate CLAUDE.md instructions
-    generate_claude_instructions
-
     # Update .gitignore
     update_gitignore
 
@@ -229,7 +222,7 @@ show_post_install_instructions() {
     echo ""
     echo "1. 📄 Add the following content to your CLAUDE.md file:"
     echo ""
-    cat claude-system-content.md
+    get_claude_content
     echo ""
     echo "2. 🔧 Setup tmux environment:"
     echo "   ./claude/setup.sh"

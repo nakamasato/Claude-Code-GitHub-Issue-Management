@@ -177,8 +177,32 @@ your-project/
 │   ├── setup.sh               # tmux環境セットアップ
 │   └── local-verification.md  # ローカル動作確認手順
 ├── CLAUDE.md                   # メイン設定ファイル（要手動追記）
-├── .gitignore                  # 自動更新（worktree/,tmp/,logs/追加）
-└── claude-system-content.md    # CLAUDE.mdに追記する内容
+└── .gitignore                  # 自動更新（worktree/,tmp/,logs/追加）
+```
+
+#### 1️⃣-2 CLAUDE.mdに設定を追加（30秒）
+インストール後に表示される内容をCLAUDE.mdファイルに追記してください：
+
+```markdown
+---
+
+# GitHub Issue Management System
+
+## エージェント構成
+- **issue-manager** (multiagent:0.0): GitHub Issue管理者
+- **worker1-N** (multiagent:0.1-N): Issue解決担当（Nはsetup.shで指定、デフォルト3）
+
+## あなたの役割
+- **issue-manager**: @claude/instructions/issue-manager.md
+- **worker1-N**: @claude/instructions/worker.md
+
+## メッセージ送信
+```bash
+./claude/agent-send.sh [相手] "[メッセージ]"
+```
+
+## 基本フロー
+GitHub Issues → issue-manager → workers → issue-manager → GitHub PRs
 ```
 
 #### 2️⃣ 環境構築（1分）
