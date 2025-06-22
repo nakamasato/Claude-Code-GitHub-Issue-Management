@@ -157,9 +157,9 @@ graph TB
 - Claude Code CLI
 - gh CLI（GitHub CLI）
 
-### 手順
+### Usage
 
-#### 1️⃣ インストール（30秒）
+#### 1️⃣ インストール
 **対象のGitレポでインストール**
 ```bash
 # シングルコマンドでインストール
@@ -180,7 +180,8 @@ your-project/
 └── .gitignore                  # 自動更新（worktree/,tmp/,logs/追加）
 ```
 
-#### 1️⃣-2 CLAUDE.mdに設定を追加（30秒）
+**CLAUDE.mdに設定を追加**
+
 インストール後に表示される内容をCLAUDE.mdファイルに追記してください：
 
 ```markdown
@@ -205,7 +206,7 @@ your-project/
 GitHub Issues → issue-manager → workers → issue-manager → GitHub PRs
 ```
 
-#### 2️⃣ 環境構築（1分）
+#### 2️⃣ 環境構築
 ```bash
 ./claude/setup.sh          # デフォルト: 3 workers
 # または
@@ -215,7 +216,7 @@ GitHub Issues → issue-manager → workers → issue-manager → GitHub PRs
 
 Claude Codeは既に全ペインで起動済みです！ブラウザでのClaude認証が必要な場合があります。
 
-#### 3️⃣ Issue Manager画面を開いてAI起動（2分）
+#### 3️⃣ Issue Manager画面を開いてAI起動
 
 **Issue Manager画面を開く：**
 ```bash
@@ -231,7 +232,7 @@ tmux attach-session -t multiagent
 └─────────────┴─────────────┘
 ```
 
-#### 4️⃣ GitHub Issue管理開始（30秒）
+#### 4️⃣ GitHub Issue管理開始
 
 Issue Manager画面で入力(defaultでは assignee:@me のissueが対象)：
 ```
