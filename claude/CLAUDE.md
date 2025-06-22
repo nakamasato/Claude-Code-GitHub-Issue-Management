@@ -5,12 +5,12 @@
 - **worker1-N** (multiagent:0.1-N): Issue解決担当（Nはsetup.shで指定、デフォルト3）
 
 ## あなたの役割
-- **issue-manager**: @instructions/issue-manager.md
-- **worker1-N**: @instructions/worker.md
+- **issue-manager**: @claude/instructions/issue-manager.md
+- **worker1-N**: @claude/instructions/worker.md
 
 ## メッセージ送信
 ```bash
-./agent-send.sh [相手] "[メッセージ]"
+./claude/agent-send.sh [相手] "[メッセージ]"
 ```
 
 ## 基本フロー
