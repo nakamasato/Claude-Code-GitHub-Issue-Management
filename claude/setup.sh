@@ -4,8 +4,41 @@
 
 set -e  # エラー時に停止
 
+# ヘルプオプション処理
+if [[ "$1" == "--help" || "$1" == "-h" ]]; then
+    echo "🤖 GitHub Issue Management System 環境構築"
+    echo "============================================="
+    echo ""
+    echo "使用方法:"
+    echo "  $0 [worker数]"
+    echo ""
+    echo "引数:"
+    echo "  worker数    作成するWorker数 (1-10, デフォルト: 3)"
+    echo ""
+    echo "環境変数:"
+    echo "  ISSUE_MANAGER_ARGS    Issue Manager用Claude引数 (デフォルト: --dangerously-skip-permissions)"
+    echo "  WORKER_ARGS           Worker用Claude引数 (デフォルト: --dangerously-skip-permissions)"
+    echo ""
+    echo "例:"
+    echo "  $0                                                        # デフォルト設定で3つのWorkerを作成"
+    echo "  $0 5                                                      # 5つのWorkerを作成"
+    echo "  ISSUE_MANAGER_ARGS='' WORKER_ARGS='' $0                   # Claude引数なしで実行"
+    echo "  ISSUE_MANAGER_ARGS='--model claude-3-5-sonnet-20241022' \\"
+    echo "  WORKER_ARGS='--model claude-3-5-sonnet-20241022' $0       # 特定のモデルを指定"
+    echo ""
+    exit 0
+fi
+
 # Worker数の設定（デフォルト: 3）
 WORKER_COUNT=${1:-3}
+
+# Claude引数の設定（環境変数から取得、デフォルトは既存の動作を維持）
+ISSUE_MANAGER_ARGS=${ISSUE_MANAGER_ARGS:-"--dangerously-skip-permissions"}
+WORKER_ARGS=${WORKER_ARGS:-"--dangerously-skip-permissions"}
+
+# 環境変数をエクスポート（tmuxセッション内で使用可能にする）
+export ISSUE_MANAGER_ARGS
+export WORKER_ARGS
 
 # Worker数の妥当性チェック
 if ! [[ "$WORKER_COUNT" =~ ^[1-9][0-9]*$ ]] || [ "$WORKER_COUNT" -gt 10 ]; then
@@ -13,6 +46,7 @@ if ! [[ "$WORKER_COUNT" =~ ^[1-9][0-9]*$ ]] || [ "$WORKER_COUNT" -gt 10 ]; then
     echo "使用方法: $0 [worker数]"
     echo "例: $0 3  # 3つのWorkerを作成（デフォルト）"
     echo "例: $0 5  # 5つのWorkerを作成"
+    echo "ヘルプ: $0 --help"
     exit 1
 fi
 
@@ -28,6 +62,9 @@ log_success() {
 echo "🤖 GitHub Issue Management System 環境構築"
 echo "============================================="
 echo "📊 設定: Worker数 = $WORKER_COUNT"
+echo "🔧 Claude引数設定:"
+echo "   Issue Manager: ${ISSUE_MANAGER_ARGS:-"(引数なし)"}"
+echo "   Workers: ${WORKER_ARGS:-"(引数なし)"}"
 echo ""
 
 # STEP 1: 既存セッションクリーンアップ
@@ -115,6 +152,10 @@ for ((i=0; i<=WORKER_COUNT; i++)); do
     # 作業ディレクトリ設定
     tmux send-keys -t "multiagent:0.$i" "cd $(pwd)" C-m
 
+    # Claude引数環境変数を各ペインに設定
+    tmux send-keys -t "multiagent:0.$i" "export ISSUE_MANAGER_ARGS='${ISSUE_MANAGER_ARGS}'" C-m
+    tmux send-keys -t "multiagent:0.$i" "export WORKER_ARGS='${WORKER_ARGS}'" C-m
+
     # ペインタイトル取得
     if [ $i -eq 0 ]; then
         PANE_TITLE="issue-manager"
@@ -132,7 +173,7 @@ done
 
 # Claude Code起動（issue-managerのみ）
 log_info "🤖 issue-manager用Claude Code起動中..."
-tmux send-keys -t "multiagent:0.0" "claude --dangerously-skip-permissions" C-m
+tmux send-keys -t "multiagent:0.0" "claude ${ISSUE_MANAGER_ARGS}" C-m
 
 # workers用の待機メッセージ
 for ((i=1; i<=WORKER_COUNT; i++)); do

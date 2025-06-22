@@ -241,7 +241,7 @@ setup_worker_environment() {
     tmux send-keys -t "multiagent:0.${worker_num}" "cd ${PWD}/${worktree_path}" C-m
 
     echo "2. worktreeディレクトリでClaude Code起動"
-    tmux send-keys -t "multiagent:0.${worker_num}" "claude --dangerously-skip-permissions" C-m
+    tmux send-keys -t "multiagent:0.${worker_num}" "claude ${WORKER_ARGS:-\"--dangerously-skip-permissions\"}" C-m
     sleep 3
 
     echo ""
@@ -412,7 +412,6 @@ handle_worker_completion() {
     # 4. Worker状況ファイル削除（作業完了）
     rm -f ./tmp/worker-status/worker${worker_num}_busy.txt
     rm -f ./tmp/worker-status/worker${worker_num}_setup_success.txt
-
     # 5. Worktreeクリーンアップ（必要に応じて）
     if [ -d "worktree/issue-${issue_number}" ]; then
         echo "worktree/issue-${issue_number}をクリーンアップ中..."

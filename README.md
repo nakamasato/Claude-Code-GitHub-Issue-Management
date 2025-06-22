@@ -221,8 +221,17 @@ GitHub Issues → issue-manager → workers → issue-manager → GitHub PRs
 #### 2️⃣ 環境構築
 ```bash
 ./claude/setup.sh          # デフォルト: 3 workers
-# または
+
+# Worker数を指定
 ./claude/setup.sh 5        # 5 workers
+
+# Claude引数を指定（ヘルプ表示）
+./claude/setup.sh --help
+
+# Claude引数を指定した実行例
+ISSUE_MANAGER_ARGS='' WORKER_ARGS='' ./claude/setup.sh                   # Claude引数なしで実行
+ISSUE_MANAGER_ARGS='--model claude-3-5-sonnet-20241022' \
+WORKER_ARGS='--model claude-3-5-sonnet-20241022' ./claude/setup.sh      # 特定のモデルを指定
 ```
 これでバックグラウンドに指定した数のターミナル画面が準備されます！
 
