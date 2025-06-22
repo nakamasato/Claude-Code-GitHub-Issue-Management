@@ -131,10 +131,15 @@ for ((i=0; i<=WORKER_COUNT; i++)); do
 done
 
 # Claude Code起動
+log_info "🤖 Claude Code起動中..."
 for ((i=0; i<=WORKER_COUNT; i++)); do
     tmux send-keys -t "multiagent:0.$i" "claude --dangerously-skip-permissions" C-m
 done
 
+# Claude起動の待機時間
+sleep 3
+
+log_success "✅ Claude Codeの起動完了"
 log_success "✅ multiagentセッション作成完了"
 echo ""
 
@@ -164,13 +169,15 @@ echo ""
 echo "📋 次のステップ:"
 echo "  1. 🔗 セッションアタッチ:"
 echo "     tmux attach-session -t multiagent   # GitHub Issue管理システム確認"
+echo "     ※ Claude Codeは既に全ペインで起動済みです！"
 echo ""
 echo "  2. 📜 指示書確認:"
 echo "     Issue Manager: instructions/issue-manager.md"
 echo "     worker1-${WORKER_COUNT}: instructions/worker.md"
 echo "     システム構造: CLAUDE.md"
 echo ""
-echo "  3. 🎯 システム起動: Issue Managerに「あなたはissue-managerです。指示書に従ってGitHub Issueの監視を開始してください」と入力"
+echo "  3. 🎯 システム起動: Issue Managerに以下のメッセージを入力:"
+echo "     「あなたはissue-managerです。指示書に従ってGitHub Issueの監視を開始してください」"
 echo ""
 echo "  4. 📋 GitHub設定確認:"
 echo "     gh auth status  # GitHub CLI認証確認"
