@@ -91,55 +91,94 @@ setup_worker_environment() {
     local issue_number="$2"
     local issue_title="$3"
 
-    # Workerセッションをクリア
-    ./claude/agent-send.sh worker${worker_num} "/clear"
-    sleep 2
+    echo "=== Worker${worker_num} 環境セットアップ開始 ==="
+    echo "Issue #${issue_number}: ${issue_title}"
 
-    # Git環境セットアップ指示
-    ./claude/agent-send.sh worker${worker_num} "あなたはworker${worker_num}です。
+    # 1. worktreeディレクトリの作成
+    local worktree_path="worktree/issue-${issue_number}"
 
-【GitHub Issue Assignment】
-Issue #${issue_number}: ${issue_title}
+    if git worktree list | grep -q "${worktree_path}"; then
+        echo "既存のworktree/${issue_number}を使用します"
+    else
+        echo "新しいworktree/issue-${issue_number}を作成中..."
 
-以下の手順で作業環境をセットアップしてください：
+        # mainブランチが最新であることを確認
+        git checkout main
+        git pull origin main
 
-1. Git環境の準備
-   \`\`\`bash
-   mkdir -p worktree
+        # 新しいworktreeを作成
+        git worktree add ${worktree_path} -b issue-${issue_number}
+    fi
 
-   # git worktreeコマンドで既存のworktreeをチェック
-   if git worktree list | grep -q "worktree/issue-${issue_number}"; then
-     echo "既存のworktree/issue-${issue_number}を使用します"
-     cd worktree/issue-${issue_number}
-   else
-     echo "新しいworktreeを作成します"
+    # 2. worktree安全性チェック
+    echo "=== worktree安全性チェック ==="
+    if [ ! -d "${worktree_path}" ]; then
+        echo "❌ エラー: worktreeディレクトリが作成されていません"
+        return 1
+    fi
 
-     # 【重要】必ずリポジトリのrootディレクトリかつmainブランチに移動してからworktreeを作成
-     # 現在worktree内にいる場合は、元のリポジトリディレクトリに戻る
-     cd "$(git worktree list | grep '\[main\]' | awk '{print $1}')"
+    # worktreeが正しく分離されているかチェック
+    local worktree_git_dir=$(cd ${worktree_path} && git rev-parse --git-dir)
+    if [[ $worktree_git_dir == *".git/worktrees/"* ]]; then
+        echo "✅ worktreeが正しく分離されています: $worktree_git_dir"
+    else
+        echo "⚠️  警告: worktreeが期待通りに分離されていません"
+    fi
 
-     # mainブランチに切り替え
-     git checkout main
-     git pull origin main
+    # 3. worktreeディレクトリでClaude Codeを起動
+    echo "worktree/issue-${issue_number}ディレクトリでClaude Codeを起動します"
+    echo ""
+    echo "【重要な安全対策】"
+    echo "- workerは ${PWD}/${worktree_path} ディレクトリから外に出ることを禁止"
+    echo "- mainブランチの直接編集を禁止"
+    echo "- 作業はissue-${issue_number}ブランチでのみ実行"
+    echo ""
+    echo "【手順】"
+    echo "1. 新しいターミナルタブを開く"
+    echo "2. 以下のコマンドを実行:"
+    echo "   cd ${PWD}/${worktree_path}"
+    echo "   claude-code --session worker${worker_num}"
+    echo ""
+    echo "3. worker${worker_num}セッションが起動したら、以下のメッセージを送信:"
+    echo ""
+    echo "=== Worker${worker_num}用メッセージ ==="
+    echo "あなたはworker${worker_num}です。"
+    echo ""
+    echo "【GitHub Issue Assignment】"
+    echo "Issue #${issue_number}: ${issue_title}"
+    echo ""
+    echo "現在のディレクトリは既にissue-${issue_number}ブランチのworktree環境です。"
+    echo ""
+    echo "以下の手順で作業を開始してください："
+    echo ""
+    echo "1. Issue詳細確認"
+    echo "   \`\`\`bash"
+    echo "   gh issue view ${issue_number}"
+    echo "   \`\`\`"
+    echo ""
+    echo "2. 作業環境確認"
+    echo "   \`\`\`bash"
+    echo "   pwd              # 現在のディレクトリ確認"
+    echo "   git branch       # 現在のブランチ確認"
+    echo "   git status       # 作業ツリーの状態確認"
+    echo "   \`\`\`"
+    echo ""
+    echo "3. タスクリスト作成"
+    echo "   - Issue内容を分析し、やることリストを作成"
+    echo "   - 実装手順を明確化"
+    echo "   - 必要な技術調査を実施"
+    echo ""
+    echo "作業準備が完了したら、Issue解決に向けて実装を開始してください。"
+    echo "進捗や質問があれば随時報告してください。"
+    echo "=========================="
+    echo ""
+    echo "上記のworker${worker_num}セッション起動が完了したら、Enterを押してください..."
+    read -r
 
-     # 最新のorigin/mainから新しいworktreeを作成
-     git worktree add worktree/issue-${issue_number} -b issue-${issue_number}
-     cd worktree/issue-${issue_number}
-   fi
-   \`\`\`
+    # Worker状況ファイル作成
+    echo "Issue #${issue_number}: ${issue_title}" > ./tmp/worker-status/worker${worker_num}_busy.txt
 
-2. Issue詳細確認
-   \`\`\`bash
-   gh issue view ${issue_number}
-   \`\`\`
-
-3. タスクリスト作成
-   - Issue内容を分析し、やることリストを作成
-   - 実装手順を明確化
-   - 必要な技術調査を実施
-
-作業準備が完了したら、Issue解決に向けて実装を開始してください。
-進捗や質問があれば随時報告してください。"
+    echo "=== Worker${worker_num} セットアップ完了 ==="
 }
 ```
 
