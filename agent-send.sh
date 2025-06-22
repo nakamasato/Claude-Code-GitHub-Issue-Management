@@ -6,9 +6,11 @@
 get_agent_target() {
     case "$1" in
         "issue-manager") echo "multiagent:0.0" ;;
-        "worker1") echo "multiagent:0.1" ;;
-        "worker2") echo "multiagent:0.2" ;;
-        "worker3") echo "multiagent:0.3" ;;
+        worker[0-9]|worker[1-9][0-9])
+            # workerN形式の場合、Nを抽出してpane番号を計算
+            local worker_num="${1#worker}"
+            echo "multiagent:0.$worker_num"
+            ;;
         *) echo "" ;;
     esac
 }
@@ -23,14 +25,12 @@ show_usage() {
 
 利用可能エージェント:
   issue-manager - GitHub Issue管理者
-  worker1       - Issue解決担当者A
-  worker2       - Issue解決担当者B
-  worker3       - Issue解決担当者C
+  worker1-N     - Issue解決担当者 (Nは設定されたworker数まで)
 
 使用例:
   $0 issue-manager "GitHub Issue確認をお願いします"
   $0 worker1 "Issue #123をアサインしました"
-  $0 worker2 "Issue解決完了しました"
+  $0 worker5 "Issue解決完了しました"
 EOF
 }
 
@@ -39,9 +39,18 @@ show_agents() {
     echo "📋 利用可能なエージェント:"
     echo "=========================="
     echo "  issue-manager → multiagent:0.0  (GitHub Issue管理者)"
-    echo "  worker1       → multiagent:0.1  (Issue解決担当者A)"
-    echo "  worker2       → multiagent:0.2  (Issue解決担当者B)"
-    echo "  worker3       → multiagent:0.3  (Issue解決担当者C)"
+
+    # tmuxセッションから実際のpane数を取得して表示
+    if tmux has-session -t multiagent 2>/dev/null; then
+        local pane_count=$(tmux list-panes -t multiagent:0 -F "#{pane_index}" | wc -l)
+        local worker_count=$((pane_count - 1))
+
+        for ((i=1; i<=worker_count; i++)); do
+            printf "  worker%-7s → multiagent:0.%-2s (Issue解決担当者#%s)\n" "$i" "$i" "$i"
+        done
+    else
+        echo "  (multiagentセッションが見つかりません - setup.shを実行してください)"
+    fi
 }
 
 # ログ記録
