@@ -250,6 +250,12 @@ Issue Manager画面で入力(defaultでは assignee:@me のissueが対象)：
 3. WorkerがIssue解決とPR作成
 4. Issue Managerが確認・品質管理
 
+#### 🗑️ アンインストール
+```bash
+# GitHub Issue管理システムを削除
+rm -rf ./claude
+```
+
 ## 🏢 登場人物（エージェント）
 
 ### 🎯 Issue Manager
