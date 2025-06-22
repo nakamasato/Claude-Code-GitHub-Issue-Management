@@ -1,15 +1,15 @@
 #!/bin/bash
 
-# デフォルトの環境セットアップコマンド
-# このファイルをカスタマイズして、プロジェクト固有の依存関係をインストールできます
+# Default environment setup command
+# Customize this file to install project-specific dependencies
 #
-# 使用例:
-# - Node.js プロジェクト: npm install または yarn install
-# - Python プロジェクト: pip install -r requirements.txt
-# - Ruby プロジェクト: bundle install
-# - その他のセットアップコマンド
+# Usage examples:
+# - Node.js projects: npm install or yarn install
+# - Python projects: pip install -r requirements.txt
+# - Ruby projects: bundle install
+# - Other setup commands
 #
-# カスタマイズ例:
+# Customization examples:
 # echo "Setting up Node.js dependencies..."
 # npm install
 #

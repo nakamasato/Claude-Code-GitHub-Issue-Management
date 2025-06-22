@@ -6,51 +6,51 @@ set -e  # エラー時に停止
 
 # ヘルプオプション処理
 if [[ "$1" == "--help" || "$1" == "-h" ]]; then
-    echo "🤖 GitHub Issue Management System 環境構築"
+    echo "🤖 GitHub Issue Management System Environment Setup"
     echo "============================================="
     echo ""
-    echo "使用方法:"
-    echo "  $0 [worker数]"
+    echo "Usage:"
+    echo "  $0 [worker_count]"
     echo ""
-    echo "引数:"
-    echo "  worker数    作成するWorker数 (1-10, デフォルト: 3)"
+    echo "Arguments:"
+    echo "  worker_count    Number of Workers to create (1-10, default: 3)"
     echo ""
-    echo "環境変数:"
-    echo "  ISSUE_MANAGER_ARGS    Issue Manager用Claude引数 (デフォルト: --dangerously-skip-permissions)"
-    echo "  WORKER_ARGS           Worker用Claude引数 (デフォルト: --dangerously-skip-permissions)"
+    echo "Environment Variables:"
+    echo "  ISSUE_MANAGER_ARGS    Claude arguments for Issue Manager (default: --dangerously-skip-permissions)"
+    echo "  WORKER_ARGS           Claude arguments for Workers (default: --dangerously-skip-permissions)"
     echo ""
-    echo "例:"
-    echo "  $0                                                        # デフォルト設定で3つのWorkerを作成"
-    echo "  $0 5                                                      # 5つのWorkerを作成"
-    echo "  ISSUE_MANAGER_ARGS='' WORKER_ARGS='' $0                   # Claude引数なしで実行"
+    echo "Examples:"
+    echo "  $0                                                        # Create 3 Workers with default settings"
+    echo "  $0 5                                                      # Create 5 Workers"
+    echo "  ISSUE_MANAGER_ARGS='' WORKER_ARGS='' $0                   # Run without Claude arguments"
     echo "  ISSUE_MANAGER_ARGS='--model claude-3-5-sonnet-20241022' \\"
-    echo "  WORKER_ARGS='--model claude-3-5-sonnet-20241022' $0       # 特定のモデルを指定"
+    echo "  WORKER_ARGS='--model claude-3-5-sonnet-20241022' $0       # Specify a particular model"
     echo ""
     exit 0
 fi
 
-# Worker数の設定（デフォルト: 3）
+# Worker count setting (default: 3)
 WORKER_COUNT=${1:-3}
 
-# Claude引数の設定（環境変数から取得、デフォルトは既存の動作を維持）
+# Claude arguments setting (obtained from environment variables, default maintains existing behavior)
 ISSUE_MANAGER_ARGS=${ISSUE_MANAGER_ARGS:-"--dangerously-skip-permissions"}
 WORKER_ARGS=${WORKER_ARGS:-"--dangerously-skip-permissions"}
 
-# 環境変数をエクスポート（tmuxセッション内で使用可能にする）
+# Export environment variables (make available within tmux session)
 export ISSUE_MANAGER_ARGS
 export WORKER_ARGS
 
-# Worker数の妥当性チェック
+# Worker count validity check
 if ! [[ "$WORKER_COUNT" =~ ^[1-9][0-9]*$ ]] || [ "$WORKER_COUNT" -gt 10 ]; then
-    echo "❌ エラー: Worker数は1-10の範囲で指定してください"
-    echo "使用方法: $0 [worker数]"
-    echo "例: $0 3  # 3つのWorkerを作成（デフォルト）"
-    echo "例: $0 5  # 5つのWorkerを作成"
-    echo "ヘルプ: $0 --help"
+    echo "❌ Error: Worker count must be specified in the range 1-10"
+    echo "Usage: $0 [worker_count]"
+    echo "Example: $0 3  # Create 3 Workers (default)"
+    echo "Example: $0 5  # Create 5 Workers"
+    echo "Help: $0 --help"
     exit 1
 fi
 
-# 色付きログ関数
+# Colored log functions
 log_info() {
     echo -e "\033[1;32m[INFO]\033[0m $1"
 }

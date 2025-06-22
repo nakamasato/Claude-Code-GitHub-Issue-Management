@@ -1,102 +1,102 @@
 <!-- skip:true -->
-# 🔍 ローカル動作確認チェックリスト
+# 🔍 Local Operation Verification Checklist
 
-このファイルでは、Pull Request作成後のローカル動作確認で実施するチェック項目を定義します。
-Issue Managerがlocal_verification関数を実行する際に、このファイルの内容に基づいて確認を行います。
+This file defines the checklist items to be performed during local operation verification after Pull Request creation.
+When the Issue Manager executes the local_verification function, verification is performed based on the contents of this file.
 
-## 基本チェック項目
+## Basic Check Items
 
-<markdownでチェックリストを作成することでlocal verificationが実行されるようになります>
+<Creating a checklist in markdown enables local verification to be executed>
 
-## 環境セットアップ手順
+## Environment Setup Procedures
 
-### 1. 開発環境準備
+### 1. Development Environment Preparation
 ```bash
-# ブランチに移動（Issue Managerが自動実行）
+# Move to branch (automatically executed by Issue Manager)
 mkdir -p worktree
 git worktree add worktree/issue-{issue_number} -b issue-{issue_number}
 cd worktree/issue-{issue_number}
 
-# 依存関係インストール
+# Install dependencies
 npm install
-# または yarn install
-# または pip install -r requirements.txt
+# or yarn install
+# or pip install -r requirements.txt
 ```
 
-### 2. サーバー起動
+### 2. Server Startup
 ```bash
-# 開発サーバー起動
+# Start development server
 npm run dev
-# または npm start
-# または yarn dev
-# または python manage.py runserver
-# または python app.py
+# or npm start
+# or yarn dev
+# or python manage.py runserver
+# or python app.py
 
-# バックグラウンド起動の場合
+# For background startup
 npm run dev &
 SERVER_PID=$!
 ```
 
-### 3. アクセス方法
+### 3. Access Method
 ```bash
-# ブラウザを開く（macOS）
+# Open browser (macOS)
 open http://localhost:3000
 
-# ブラウザを開く（Linux）
+# Open browser (Linux)
 xdg-open http://localhost:3000
 
-# 手動でブラウザを開く
+# Manually open browser
 # http://localhost:3000
 # http://localhost:8000
 # http://localhost:5000
 ```
 
-### 4. 確認完了後のクリーンアップ
+### 4. Cleanup After Verification
 ```bash
-# サーバー停止
+# Stop server
 kill $SERVER_PID
-# または Ctrl+C
+# or Ctrl+C
 
-# テスト用データのクリーンアップ（必要に応じて）
+# Clean up test data (if necessary)
 npm run db:reset
 ```
 
-## 確認手順メモ
+## Verification Procedure Notes
 
-### 確認環境
-- ブラウザ: Chrome, Firefox, Safari
-- デバイス: PC, タブレット, スマートフォン
+### Verification Environment
+- Browsers: Chrome, Firefox, Safari
+- Devices: PC, Tablet, Smartphone
 - OS: macOS, Windows, Linux
 
-### 確認すべきURL・画面
-- トップページ: http://localhost:3000/
-- [その他のページを追記してください]
+### URLs/Pages to Verify
+- Top page: http://localhost:3000/
+- [Please add other pages here]
 
-### テスト用データ
-- テストユーザー: [テストアカウント情報]
-- テストデータ: [必要なデータセット]
+### Test Data
+- Test users: [Test account information]
+- Test data: [Required datasets]
 
-## 注意事項
+## Notes
 
-### Local Verification実行条件
-- ✅ このファイルが存在する
-- ✅ 第一行目が `<!-- skip:true -->` でない
+### Local Verification Execution Conditions
+- ✅ This file exists
+- ✅ First line is not `<!-- skip:true -->`
 
-### Local Verificationをスキップする方法
+### How to Skip Local Verification
 ```markdown
 <!-- skip:true -->
 ```
-ファイルの第一行目に上記コメントを追加すると、local verificationがスキップされます。
+Adding the above comment to the first line of the file will skip local verification.
 
-### その他の注意事項
-- チェック項目はプロジェクトの特性に応じてカスタマイズしてください
-- 新機能追加時は、関連するチェック項目を追加してください
-- local verificationを一時的に無効にしたい場合は `<!-- skip:true -->` を使用
-- 完全に無効にしたい場合はファイルを削除してください
+### Other Notes
+- Please customize check items according to project characteristics
+- When adding new features, please add related check items
+- Use `<!-- skip:true -->` to temporarily disable local verification
+- Delete the file to completely disable it
 
 ---
 
-**使用方法**:
-1. プロジェクトに応じてチェック項目をカスタマイズ
-2. Issue Manager が PR 作成後に自動でローカル確認を実施
-3. 確認結果を GitHub Issue にコメントとして記録
+**Usage**:
+1. Customize check items according to project
+2. Issue Manager automatically performs local verification after PR creation
+3. Record verification results as comments on GitHub Issue
