@@ -8,11 +8,11 @@
 
 set -e
 
-# デフォルト設定
+# Default settings
 DEFAULT_REF="main"
 GITHUB_REF="$DEFAULT_REF"
 
-# コマンドライン引数処理
+# Command line argument processing
 while [[ $# -gt 0 ]]; do
     case $1 in
         --ref)
@@ -24,22 +24,22 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h|--help)
-            echo "使用方法:"
-            echo "  $0 [オプション]"
+            echo "Usage:"
+            echo "  $0 [options]"
             echo ""
-            echo "オプション:"
-            echo "  --ref REF     使用するGitHub ref (tag/sha/branch) [デフォルト: main]"
-            echo "  -h, --help    このヘルプを表示"
+            echo "Options:"
+            echo "  --ref REF     GitHub ref to use (tag/sha/branch) [default: main]"
+            echo "  -h, --help    Show this help"
             echo ""
-            echo "例:"
-            echo "  $0                    # mainブランチを使用"
-            echo "  $0 --ref v1.0.0       # v1.0.0タグを使用"
-            echo "  $0 --ref feature-xyz  # feature-xyzブランチを使用"
+            echo "Examples:"
+            echo "  $0                    # Use main branch"
+            echo "  $0 --ref v1.0.0       # Use v1.0.0 tag"
+            echo "  $0 --ref feature-xyz  # Use feature-xyz branch"
             exit 0
             ;;
         *)
-            echo "不明なオプション: $1"
-            echo "ヘルプを表示するには --help を使用してください"
+            echo "Unknown option: $1"
+            echo "Use --help to show help"
             exit 1
             ;;
     esac
@@ -47,7 +47,7 @@ done
 
 echo "🤖 GitHub Issue Management System - Enhanced Installation"
 echo "========================================================"
-echo "📍 使用するGitHub Ref: $GITHUB_REF"
+echo "📍 Using GitHub Ref: $GITHUB_REF"
 
 # Color definitions
 RED='\033[0;31m'
