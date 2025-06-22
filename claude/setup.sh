@@ -130,16 +130,21 @@ for ((i=0; i<=WORKER_COUNT; i++)); do
     tmux send-keys -t "multiagent:0.$i" "echo '=== ${PANE_TITLE} エージェント ==='" C-m
 done
 
-# Claude Code起動
-log_info "🤖 Claude Code起動中..."
-for ((i=0; i<=WORKER_COUNT; i++)); do
-    tmux send-keys -t "multiagent:0.$i" "claude --dangerously-skip-permissions" C-m
+# Claude Code起動（issue-managerのみ）
+log_info "🤖 issue-manager用Claude Code起動中..."
+tmux send-keys -t "multiagent:0.0" "claude --dangerously-skip-permissions" C-m
+
+# workers用の待機メッセージ
+for ((i=1; i<=WORKER_COUNT; i++)); do
+    tmux send-keys -t "multiagent:0.$i" "echo '=== worker$i 待機中 ==='" C-m
+    tmux send-keys -t "multiagent:0.$i" "echo 'Issue Managerからの割り当てをお待ちください'" C-m
+    tmux send-keys -t "multiagent:0.$i" "echo 'Claudeは割り当て時に自動起動されます'" C-m
 done
 
 # Claude起動の待機時間
 sleep 3
 
-log_success "✅ Claude Codeの起動完了"
+log_success "✅ issue-manager用Claude Codeの起動完了"
 log_success "✅ multiagentセッション作成完了"
 echo ""
 
@@ -169,7 +174,8 @@ echo ""
 echo "📋 次のステップ:"
 echo "  1. 🔗 セッションアタッチ:"
 echo "     tmux attach-session -t multiagent   # GitHub Issue管理システム確認"
-echo "     ※ Claude Codeは既に全ペインで起動済みです！"
+echo "     ※ Claude Codeはissue-managerペインでのみ起動済みです"
+echo "     ※ worker用Claudeは、Issue割り当て時に自動起動されます"
 echo ""
 echo "  2. 📜 指示書確認:"
 echo "     Issue Manager: instructions/issue-manager.md"
