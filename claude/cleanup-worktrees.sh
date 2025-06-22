@@ -4,7 +4,7 @@
 # Script to automatically clean up worktrees for closed GitHub issues
 #
 # Usage:
-#   ./scripts/cleanup-worktrees.sh [--dry-run] [--help]
+#   ./claude/cleanup-worktrees.sh [--dry-run] [--help]
 #
 # Options:
 #   --dry-run    Show what would be cleaned up without actually removing anything
@@ -47,7 +47,7 @@ show_help() {
 cleanup-worktrees.sh - Clean up worktrees for closed GitHub issues
 
 USAGE:
-    ./scripts/cleanup-worktrees.sh [OPTIONS]
+    ./claude/cleanup-worktrees.sh [OPTIONS]
 
 OPTIONS:
     --dry-run    Show what would be cleaned up without actually removing anything
@@ -61,10 +61,10 @@ DESCRIPTION:
 
 EXAMPLES:
     # Dry run - see what would be cleaned up
-    ./scripts/cleanup-worktrees.sh --dry-run
+    ./claude/cleanup-worktrees.sh --dry-run
 
     # Actually clean up closed issue worktrees
-    ./scripts/cleanup-worktrees.sh
+    ./claude/cleanup-worktrees.sh
 EOF
 }
 
@@ -302,7 +302,7 @@ main() {
     if [[ "$DRY_RUN" == "true" && $removed_worktrees -gt 0 ]]; then
         echo
         print_info "To actually perform the cleanup, run:"
-        print_info "./scripts/cleanup-worktrees.sh"
+        print_info "./claude/cleanup-worktrees.sh"
     fi
 
     echo "====================================================="

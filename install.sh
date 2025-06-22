@@ -144,6 +144,7 @@ download_files() {
         "agent-send.sh"
         "setup.sh"
         "local-verification.md"
+        "cleanup-worktrees.sh"
     )
 
     for file in "${files[@]}"; do

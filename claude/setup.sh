@@ -91,6 +91,15 @@ else
     log_info ".gitignoreに既にworktree/が存在します"
 fi
 
+# worktreeクリーンアップ実行
+log_info "🧹 worktreeクリーンアップ実行中..."
+if [ -f "./claude/cleanup-worktrees.sh" ]; then
+    ./claude/cleanup-worktrees.sh
+    log_info "✅ worktreeクリーンアップ完了"
+else
+    log_info "⚠️  cleanup-worktrees.sh が見つかりません (スキップ)"
+fi
+
 # worktreeディレクトリの準備
 mkdir -p worktree
 log_info "worktreeディレクトリを作成しました"
