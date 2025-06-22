@@ -58,32 +58,129 @@ fi
 
 ### 3. Issue割り当てロジック
 ```bash
-# 利用可能なWorkerを見つけてIssueをAssign
-assign_issue() {
+# 利用可能なWorkerを見つけてIssueをAssignし、必須の環境セットアップを実行
+assign_issue_with_environment() {
     local issue_number="$1"
     local issue_title="$2"
 
+    echo "=== Issue #${issue_number} 割り当て処理開始 ==="
+    echo "タイトル: ${issue_title}"
+
     # 利用可能なWorkerを探す
+    local assigned_worker=""
     for ((worker_num=1; worker_num<=WORKER_COUNT; worker_num++)); do
         if [ ! -f ./tmp/worker-status/worker${worker_num}_busy.txt ]; then
-            echo "Issue #${issue_number}を@meにAssign"
-
-            # GitHub上で現在ログインしているユーザーにAssign
-            gh issue edit $issue_number --add-assignee @me
-
-            # Worker状況ファイル作成
-            echo "Issue #${issue_number}: ${issue_title}" > ./tmp/worker-status/worker${worker_num}_busy.txt
-
-            # Workerに作業指示を送信
-            setup_worker_environment $worker_num $issue_number "$issue_title"
-
+            assigned_worker="$worker_num"
             break
         fi
     done
+
+    # 利用可能なWorkerがない場合
+    if [ -z "$assigned_worker" ]; then
+        echo "❌ エラー: 利用可能なWorkerがありません"
+        echo "現在のWorker状況:"
+        check_worker_load
+        return 1
+    fi
+
+    echo "✅ Worker${assigned_worker}に割り当て開始"
+
+    # GitHub上で現在ログインしているユーザーにAssign
+    echo "GitHub Issue #${issue_number}を@meにAssign中..."
+    if ! gh issue edit $issue_number --add-assignee @me; then
+        echo "❌ エラー: GitHub Issue Assignment失敗"
+        return 1
+    fi
+
+    # Worker環境セットアップを実行（必須）
+    echo "=== Worker${assigned_worker}環境セットアップ実行（必須処理） ==="
+    if setup_worker_environment "$assigned_worker" "$issue_number" "$issue_title"; then
+        echo "✅ Issue #${issue_number}のWorker${assigned_worker}への割り当て完了"
+        echo "環境セットアップ成功: $(date)" > "./tmp/worker-status/worker${assigned_worker}_setup_success.txt"
+        return 0
+    else
+        echo "❌ エラー: Worker${assigned_worker}環境セットアップ失敗"
+        echo "GitHub Issue Assignment を取り消します..."
+
+        # GitHub Assignmentを取り消し
+        gh issue edit $issue_number --remove-assignee @me
+
+        # Worker状況ファイルがあれば削除
+        rm -f "./tmp/worker-status/worker${assigned_worker}_busy.txt"
+
+        echo "環境セットアップ失敗のためIssue #${issue_number}の割り当てを中止しました"
+        return 1
+    fi
+}
+
+# 後方互換性のため従来の関数名でも呼び出し可能（非推奨）
+assign_issue() {
+    echo "⚠️  警告: assign_issue()は非推奨です。assign_issue_with_environment()を使用してください"
+    assign_issue_with_environment "$@"
 }
 ```
 
 ## Worker環境セットアップ
+
+### 0. 共通関数
+```bash
+# Worker Claudeの実行状態確認関数
+check_worker_claude_status() {
+    local worker_num="$1"
+    local claude_running=false
+
+    # tmuxペインが存在するかチェック
+    if tmux list-panes -t "multiagent:0.${worker_num}" >/dev/null 2>&1; then
+        # ペインの現在のコマンドを確認
+        local current_command=$(tmux display-message -p -t "multiagent:0.${worker_num}" "#{pane_current_command}")
+
+        if [[ "$current_command" == "zsh" ]] || [[ "$current_command" == "bash" ]] || [[ "$current_command" == "sh" ]]; then
+            echo "ℹ️  worker${worker_num}はシェルモード（Claude未起動）: $current_command"
+            claude_running=false
+        elif [[ "$current_command" == "node" ]] || [[ "$current_command" == "claude" ]]; then
+            echo "✅ worker${worker_num}でClaude実行中を検出: $current_command"
+            claude_running=true
+        else
+            echo "ℹ️  worker${worker_num}の不明なプロセス: $current_command (シェルモードとして扱います)"
+            claude_running=false
+        fi
+    else
+        echo "❌ worker${worker_num}ペインが見つかりません"
+        return 2
+    fi
+
+    # 戻り値: 0=Claude実行中, 1=シェルモード, 2=ペイン不存在
+    if [ "$claude_running" = true ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Worker Claude安全終了関数
+safe_exit_worker_claude() {
+    local worker_num="$1"
+
+    echo "worker${worker_num}のClaude状態確認中..."
+    local current_command=$(tmux display-message -p -t "multiagent:0.${worker_num}" "#{pane_current_command}")
+
+    if [[ "$current_command" == "zsh" ]] || [[ "$current_command" == "bash" ]] || [[ "$current_command" == "sh" ]]; then
+        echo "ℹ️  worker${worker_num}は既にシェルモード: $current_command (終了処理スキップ)"
+        return 1
+    elif [[ "$current_command" == "node" ]] || [[ "$current_command" == "claude" ]]; then
+        echo "✅ worker${worker_num}でClaude系プロセス実行中: $current_command"
+        echo "Claudeからの安全終了指示送信中..."
+        ./claude/agent-send.sh worker${worker_num} "exit"
+        sleep 3
+        echo "✅ Claude終了指示完了"
+        return 0
+    else
+        echo "ℹ️  worker${worker_num}の不明なプロセス: $current_command (終了処理スキップ)"
+        return 1
+    fi
+}
+```
+
 ### 1. Worker初期化処理
 ```bash
 setup_worker_environment() {
@@ -91,55 +188,105 @@ setup_worker_environment() {
     local issue_number="$2"
     local issue_title="$3"
 
-    # Workerセッションをクリア
-    ./claude/agent-send.sh worker${worker_num} "/clear"
-    sleep 2
+    echo "=== Worker${worker_num} 環境セットアップ開始 ==="
+    echo "Issue #${issue_number}: ${issue_title}"
 
-    # Git環境セットアップ指示
-    ./claude/agent-send.sh worker${worker_num} "あなたはworker${worker_num}です。
+    # 1. Claude安全終了処理
+    echo "=== Worker${worker_num} Claude安全終了処理 ==="
+    safe_exit_worker_claude "$worker_num"
 
-【GitHub Issue Assignment】
-Issue #${issue_number}: ${issue_title}
+    # 2. worktreeディレクトリの作成
+    local worktree_path="worktree/issue-${issue_number}"
 
-以下の手順で作業環境をセットアップしてください：
+    if git worktree list | grep -q "${worktree_path}"; then
+        echo "既存のworktree/${issue_number}を使用します"
+    else
+        echo "新しいworktree/issue-${issue_number}を作成中..."
 
-1. Git環境の準備
-   \`\`\`bash
-   mkdir -p worktree
+        # mainブランチが最新であることを確認
+        git checkout main
+        git pull origin main
 
-   # git worktreeコマンドで既存のworktreeをチェック
-   if git worktree list | grep -q "worktree/issue-${issue_number}"; then
-     echo "既存のworktree/issue-${issue_number}を使用します"
-     cd worktree/issue-${issue_number}
-   else
-     echo "新しいworktreeを作成します"
+        # 新しいworktreeを作成
+        git worktree add ${worktree_path} -b issue-${issue_number}
+    fi
 
-     # 【重要】必ずリポジトリのrootディレクトリかつmainブランチに移動してからworktreeを作成
-     # 現在worktree内にいる場合は、元のリポジトリディレクトリに戻る
-     cd "$(git worktree list | grep '\[main\]' | awk '{print $1}')"
+    # 3. worktree安全性チェック
+    echo "=== worktree安全性チェック ==="
+    if [ ! -d "${worktree_path}" ]; then
+        echo "❌ エラー: worktreeディレクトリが作成されていません"
+        return 1
+    fi
 
-     # mainブランチに切り替え
-     git checkout main
-     git pull origin main
+    # worktreeが正しく分離されているかチェック
+    local worktree_git_dir=$(cd ${worktree_path} && git rev-parse --git-dir)
+    if [[ $worktree_git_dir == *".git/worktrees/"* ]]; then
+        echo "✅ worktreeが正しく分離されています: $worktree_git_dir"
+    else
+        echo "⚠️  警告: worktreeが期待通りに分離されていません"
+    fi
 
-     # 最新のorigin/mainから新しいworktreeを作成
-     git worktree add worktree/issue-${issue_number} -b issue-${issue_number}
-     cd worktree/issue-${issue_number}
-   fi
-   \`\`\`
+    # 4. worktreeディレクトリでClaude Code起動
+    echo "=== Worker${worker_num} Claude起動処理 ==="
+    echo "worktree/issue-${issue_number}ディレクトリでClaude Codeを起動します"
+    echo ""
+    echo "【重要な安全対策】"
+    echo "- workerは ${PWD}/${worktree_path} ディレクトリから外に出ることを禁止"
+    echo "- mainブランチの直接編集を禁止"
+    echo "- 作業はissue-${issue_number}ブランチでのみ実行"
+    echo ""
+    echo "【自動実行手順】"
 
-2. Issue詳細確認
-   \`\`\`bash
-   gh issue view ${issue_number}
-   \`\`\`
+    echo "1. worktreeディレクトリに移動"
+    tmux send-keys -t "multiagent:0.${worker_num}" "cd ${PWD}/${worktree_path}" C-m
 
-3. タスクリスト作成
-   - Issue内容を分析し、やることリストを作成
-   - 実装手順を明確化
-   - 必要な技術調査を実施
+    echo "2. worktreeディレクトリでClaude Code起動"
+    tmux send-keys -t "multiagent:0.${worker_num}" "claude --dangerously-skip-permissions" C-m
+    sleep 3
 
-作業準備が完了したら、Issue解決に向けて実装を開始してください。
-進捗や質問があれば随時報告してください。"
+    echo ""
+    echo "3. worker${worker_num}セッションが起動したら、以下のメッセージを送信:"
+    echo ""
+    echo "=== Worker${worker_num}用メッセージ ==="
+    echo "あなたはworker${worker_num}です。"
+    echo ""
+    echo "【GitHub Issue Assignment】"
+    echo "Issue #${issue_number}: ${issue_title}"
+    echo ""
+    echo "現在のディレクトリは既にissue-${issue_number}ブランチのworktree環境です。"
+    echo ""
+    echo "以下の手順で作業を開始してください："
+    echo ""
+    echo "1. Issue詳細確認"
+    echo "   \`\`\`bash"
+    echo "   gh issue view ${issue_number}"
+    echo "   \`\`\`"
+    echo ""
+    echo "2. 作業環境確認"
+    echo "   \`\`\`bash"
+    echo "   pwd              # 現在のディレクトリ確認"
+    echo "   git branch       # 現在のブランチ確認"
+    echo "   git status       # 作業ツリーの状態確認"
+    echo "   \`\`\`"
+    echo ""
+    echo "3. タスクリスト作成"
+    echo "   - Issue内容を分析し、やることリストを作成"
+    echo "   - 実装手順を明確化"
+    echo "   - 必要な技術調査を実施"
+    echo ""
+    echo "作業準備が完了したら、Issue解決に向けて実装を開始してください。"
+    echo "進捗や質問があれば随時報告してください。"
+    echo "=========================="
+    echo ""
+    echo "上記のworker${worker_num}セッション起動が完了したら、Enterを押してください..."
+    read -r
+
+    # 5. Worker状況ファイル作成
+    echo "5. Worker状況ファイル作成"
+    mkdir -p ./tmp/worker-status
+    echo "Issue #${issue_number}: ${issue_title}" > ./tmp/worker-status/worker${worker_num}_busy.txt
+
+    echo "=== Worker${worker_num} セットアップ完了 ==="
 }
 ```
 
@@ -248,10 +395,25 @@ handle_worker_completion() {
         fi
     fi
 
-    # Worker状況ファイル削除（作業完了）
-    rm -f ./tmp/worker-status/worker${worker_num}_busy.txt
+    # Worker Claude セッション終了とworktree環境クリーンアップ
+    echo "=== Worker${worker_num} Claude終了とクリーンアップ ==="
 
-    # Worktreeクリーンアップ（必要に応じて）
+    # 1. Worker Claude安全終了
+    echo "1. worker${worker_num}のClaude安全終了処理"
+    safe_exit_worker_claude "$worker_num"
+
+    # 2. 元のルートディレクトリに戻る
+    tmux send-keys -t "multiagent:0.${worker_num}" "cd $(pwd)" C-m
+
+    # 3. 待機メッセージ表示
+    tmux send-keys -t "multiagent:0.${worker_num}" "echo '=== worker${worker_num} 待機中 ==='" C-m
+    tmux send-keys -t "multiagent:0.${worker_num}" "echo 'Issue Managerからの次の割り当てをお待ちください'" C-m
+
+    # 4. Worker状況ファイル削除（作業完了）
+    rm -f ./tmp/worker-status/worker${worker_num}_busy.txt
+    rm -f ./tmp/worker-status/worker${worker_num}_setup_success.txt
+
+    # 5. Worktreeクリーンアップ（必要に応じて）
     if [ -d "worktree/issue-${issue_number}" ]; then
         echo "worktree/issue-${issue_number}をクリーンアップ中..."
         git worktree remove worktree/issue-${issue_number} --force 2>/dev/null || true
@@ -437,7 +599,7 @@ monitor_issues_with_filter() {
             read -p "Issue #${issue_num} を自分にアサインしますか？ (y/N): " -n 1 -r
             echo
             if [[ $REPLY =~ ^[Yy]$ ]]; then
-                assign_issue "$issue_num" "$issue_title"
+                assign_issue_with_environment "$issue_num" "$issue_title"
             else
                 echo "Issue #${issue_num} をスキップしました"
             fi
@@ -455,15 +617,49 @@ monitor_issues_with_filter() {
 
 ### 2. Worker負荷バランシング
 ```bash
-# Worker負荷確認
+# Worker負荷確認（環境セットアップ状況も含む）
 check_worker_load() {
     echo "=== Worker負荷状況 ==="
     for ((worker_num=1; worker_num<=WORKER_COUNT; worker_num++)); do
         if [ -f ./tmp/worker-status/worker${worker_num}_busy.txt ]; then
-            echo "Worker${worker_num}: 作業中 - $(cat ./tmp/worker-status/worker${worker_num}_busy.txt)"
+            local issue_info=$(cat ./tmp/worker-status/worker${worker_num}_busy.txt)
+            local setup_status=""
+
+            if [ -f "./tmp/worker-status/worker${worker_num}_setup_success.txt" ]; then
+                local setup_time=$(cat "./tmp/worker-status/worker${worker_num}_setup_success.txt")
+                setup_status=" [環境セットアップ済み: ${setup_time}]"
+            else
+                setup_status=" [⚠️ 環境セットアップ未完了]"
+            fi
+
+            echo "Worker${worker_num}: 作業中 - ${issue_info}${setup_status}"
         else
             echo "Worker${worker_num}: 利用可能"
         fi
+    done
+}
+
+# Worker環境セットアップ状況の詳細確認
+check_worker_environment_status() {
+    echo "=== Worker環境セットアップ状況詳細 ==="
+    for ((worker_num=1; worker_num<=WORKER_COUNT; worker_num++)); do
+        echo "--- Worker${worker_num} ---"
+
+        if [ -f "./tmp/worker-status/worker${worker_num}_busy.txt" ]; then
+            local issue_info=$(cat "./tmp/worker-status/worker${worker_num}_busy.txt")
+            echo "割り当て Issue: ${issue_info}"
+
+            if [ -f "./tmp/worker-status/worker${worker_num}_setup_success.txt" ]; then
+                local setup_time=$(cat "./tmp/worker-status/worker${worker_num}_setup_success.txt")
+                echo "環境セットアップ: ✅ 成功 (${setup_time})"
+            else
+                echo "環境セットアップ: ❌ 未完了または失敗"
+                echo "⚠️  このWorkerは環境セットアップが完了していません！"
+            fi
+        else
+            echo "状況: 利用可能（待機中）"
+        fi
+        echo ""
     done
 }
 ```
@@ -485,8 +681,27 @@ monitor_issues_with_filter "assignee:@me label:bug"
 ## 重要なポイント
 - 各Workerが同時に1つのIssueのみ処理するよう厳密管理
 - GitHub IssueとPRの状況を常に把握
-- Worker環境セットアップの自動化
+- **Worker環境セットアップの強制実行と失敗時の安全な回復**
+- **環境セットアップなしでのIssue割り当てを完全防止**
 - 進捗の可視化と適切なフィードバック
 - 品質確保のためのローカル確認プロセス
 - 継続的なIssue監視と効率的な割り当て
 - **フィルタ条件を活用した効率的なIssue管理**
+
+## 使用ガイドライン
+
+### Issue割り当て時の推奨手順
+1. **必須**: `assign_issue_with_environment()` を使用（`assign_issue()`は非推奨）
+2. **推奨**: 割り当て前に `check_worker_load()` でWorker状況を確認
+3. **推奨**: 定期的に `check_worker_environment_status()` で環境セットアップ状況を確認
+
+### 環境セットアップ失敗時の対応
+1. エラーメッセージを確認し、原因を特定
+2. Workerの tmux セッション状況を確認
+3. 必要に応じて手動でセットアップ手順を実行
+4. 問題が解決したら再度 `assign_issue_with_environment()` を実行
+
+### 安全性確保のためのチェックポイント
+- ✅ Worker環境セットアップが完了していることを確認
+- ✅ GitHub Issue Assignmentとworktree環境が一致していることを確認
+- ✅ 失敗時にクリーンアップが適切に実行されていることを確認

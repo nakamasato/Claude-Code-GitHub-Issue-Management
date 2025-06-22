@@ -420,6 +420,41 @@ GitHub Issues → issue-manager → workers → GitHub PRs
 ### Worktreeの使用目的
 GitHub Issue管理システムでは、各IssueごとにGit worktreeを作成し、並列開発を可能にします。
 
+### 🛡️ Worker安全環境の強化
+Issue #6で実装された重要な安全対策：
+
+#### Worker環境分離
+- **Claude起動制御**: setup.shはissue-managerのみClaude起動、workersは待機状態
+- **自動worktree移行**: Issue割り当て時にworkerを自動的にworktreeディレクトリに移行
+- **プロセス検出**: `pane_current_command`でClaude実行状態を正確に判定
+- **安全終了**: agent-send.shによるClaude安全終了でシェル終了を防止
+
+#### 動作フロー
+```bash
+# 初期状態（setup.sh実行後）
+issue-manager: Claude起動済み（rootディレクトリ）
+worker1-N: 待機メッセージ表示（Claudeは未起動）
+
+# Issue割り当て時
+1. worktree作成/確認
+2. workerプロセス状態確認（zsh/node）
+   - zsh → 直接Claude起動
+   - node → agent-send.sh でexit → Claude再起動
+3. worktreeディレクトリに移動
+4. Claude再起動
+
+# Issue完了時
+1. workerプロセス状態確認
+2. Claude安全終了（実行中の場合）
+3. rootディレクトリに復帰
+4. 待機状態に戻る
+```
+
+#### セキュリティメリット
+- **mainブランチ保護**: workerが誤ってrootディレクトリで作業することを防止
+- **環境完全分離**: 各Issueが独立したworktree環境で実行
+- **自動復旧**: Issue完了時にworkerが自動的にクリーンな状態に復帰
+
 ### Worktreeディレクトリ構造
 ```
 project-root/
