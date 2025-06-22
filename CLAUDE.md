@@ -1,23 +1,23 @@
 # GitHub Issue Management System
 
-## エージェント構成
-- **issue-manager** (multiagent:0.0): GitHub Issue管理者
-- **worker1-N** (multiagent:0.1-N): Issue解決担当（Nはsetup.shで指定、デフォルト3）
+## Agent Configuration
+- **issue-manager** (multiagent:0.0): GitHub Issue Manager
+- **worker1-N** (multiagent:0.1-N): Issue Resolution Workers (N specified in setup.sh, default 3)
 
-## あなたの役割
+## Your Role
 - **issue-manager**: @claude/instructions/issue-manager.md
 - **worker1-N**: @claude/instructions/worker.md
 
-## メッセージ送信
+## Message Sending
 ```bash
-./claude/agent-send.sh [相手] "[メッセージ]"
+./claude/agent-send.sh [recipient] "[message]"
 ```
 
-## 基本フロー
+## Basic Flow
 GitHub Issues → issue-manager → workers → issue-manager → GitHub PRs
 
-## Worker安全環境フロー
-1. **issue-manager**: worktreeディレクトリ作成
-2. **issue-manager**: worktreeディレクトリでworker用Claude起動指示
-3. **worker**: 分離されたworktree環境で安全に作業実行
-4. **worker**: mainブランチ汚染のリスクなし
+## Worker Safe Environment Flow
+1. **issue-manager**: Create worktree directory
+2. **issue-manager**: Instruct worker to start Claude in worktree directory
+3. **worker**: Safely execute work in isolated worktree environment
+4. **worker**: No risk of main branch contamination

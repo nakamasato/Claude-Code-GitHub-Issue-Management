@@ -7,7 +7,7 @@ get_agent_target() {
     case "$1" in
         "issue-manager") echo "multiagent:0.0" ;;
         worker[0-9]|worker[1-9][0-9])
-            # workerN形式の場合、Nを抽出してpane番号を計算
+            # For workerN format, extract N and calculate pane number
             local worker_num="${1#worker}"
             echo "multiagent:0.$worker_num"
             ;;
@@ -17,17 +17,17 @@ get_agent_target() {
 
 show_usage() {
     cat << EOF
-🤖 Agent間メッセージ送信
+🤖 Inter-agent Message Sending
 
-使用方法:
-  $0 [エージェント名] [メッセージ]
+Usage:
+  $0 [agent_name] [message]
   $0 --list
 
-利用可能エージェント:
-  issue-manager - GitHub Issue管理者
-  worker1-N     - Issue解決担当者 (Nは設定されたworker数まで)
+Available Agents:
+  issue-manager - GitHub Issue Manager
+  worker1-N     - Issue Resolution Workers (N up to configured worker count)
 
-使用例:
+Examples:
   $0 issue-manager "GitHub Issue確認をお願いします"
   $0 worker1 "Issue #123をアサインしました"
   $0 worker5 "Issue解決完了しました"
