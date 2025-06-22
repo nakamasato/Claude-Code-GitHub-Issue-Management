@@ -1,12 +1,53 @@
 #!/bin/bash
 
 # 🚀 GitHub Issue Management System - Enhanced Installation Script
-# Usage: curl -sSL https://raw.githubusercontent.com/nakamasato/Claude-Code-Communication/main/install.sh | bash
+# Usage:
+#   curl -sSL https://raw.githubusercontent.com/nakamasato/Claude-Code-GitHub-Issue-Management/main/install.sh | bash
+#   curl -sSL https://raw.githubusercontent.com/nakamasato/Claude-Code-GitHub-Issue-Management/main/install.sh | bash -s -- --ref v1.0.0
+#   curl -sSL https://raw.githubusercontent.com/nakamasato/Claude-Code-GitHub-Issue-Management/main/install.sh | bash -s -- --ref feature-branch
 
 set -e
 
+# デフォルト設定
+DEFAULT_REF="main"
+GITHUB_REF="$DEFAULT_REF"
+
+# コマンドライン引数処理
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --ref)
+            GITHUB_REF="$2"
+            shift 2
+            ;;
+        --ref=*)
+            GITHUB_REF="${1#*=}"
+            shift
+            ;;
+        -h|--help)
+            echo "使用方法:"
+            echo "  $0 [オプション]"
+            echo ""
+            echo "オプション:"
+            echo "  --ref REF     使用するGitHub ref (tag/sha/branch) [デフォルト: main]"
+            echo "  -h, --help    このヘルプを表示"
+            echo ""
+            echo "例:"
+            echo "  $0                    # mainブランチを使用"
+            echo "  $0 --ref v1.0.0       # v1.0.0タグを使用"
+            echo "  $0 --ref feature-xyz  # feature-xyzブランチを使用"
+            exit 0
+            ;;
+        *)
+            echo "不明なオプション: $1"
+            echo "ヘルプを表示するには --help を使用してください"
+            exit 1
+            ;;
+    esac
+done
+
 echo "🤖 GitHub Issue Management System - Enhanced Installation"
 echo "========================================================"
+echo "📍 使用するGitHub Ref: $GITHUB_REF"
 
 # Color definitions
 RED='\033[0;31m'
@@ -90,7 +131,7 @@ set_installation_method() {
 # Download files from GitHub
 download_files() {
     local target_dir="$1"
-    local base_url="https://raw.githubusercontent.com/nakamasato/Claude-Code-Communication/main/claude"
+    local base_url="https://raw.githubusercontent.com/nakamasato/Claude-Code-GitHub-Issue-Management/$GITHUB_REF/claude"
 
     log_info "Downloading files from GitHub..."
 

@@ -162,9 +162,15 @@ graph TB
 #### 1️⃣ インストール
 **対象のGitレポでインストール**
 ```bash
-# シングルコマンドでインストール
-curl -sSL https://raw.githubusercontent.com/nakamasato/Claude-Code-Communication/main/install.sh | bash
+# 最新版（mainブランチ）
+curl -sSL https://raw.githubusercontent.com/nakamasato/Claude-Code-GitHub-Issue-Management/main/install.sh | bash
+
+# 特定のバージョン（タグ指定）
+GITHUB_REF=v1.0.0
+curl -sSL "https://raw.githubusercontent.com/nakamasato/Claude-Code-GitHub-Issue-Management/$GITHUB_REF/install.sh" | bash -s -- --ref "$GITHUB_REF"
 ```
+
+![](install.gif)
 
 インストール完了後のファイル構成：
 ```
@@ -184,7 +190,7 @@ your-project/
 
 インストール後に表示される内容をCLAUDE.mdファイルに追記してください：
 
-```markdown
+````markdown
 ---
 
 # GitHub Issue Management System
@@ -204,7 +210,11 @@ your-project/
 
 ## 基本フロー
 GitHub Issues → issue-manager → workers → issue-manager → GitHub PRs
-```
+````
+
+> [!WARNING]
+> **この時点で一度コミットしてmainへPushしてください。**
+> issue-managerとworkerは常に最新mainから始めるためにmain branchにこれらのscriptとinstructionが入っている必要があります。
 
 #### 2️⃣ 環境構築
 ```bash
