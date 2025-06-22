@@ -204,7 +204,7 @@ setup_worker_environment() {
     tmux send-keys -t "multiagent:0.${worker_num}" "cd ${PWD}/${worktree_path}" C-m
 
     echo "2. worktreeディレクトリでClaude Code起動"
-    tmux send-keys -t "multiagent:0.${worker_num}" "claude --dangerously-skip-permissions" C-m
+    tmux send-keys -t "multiagent:0.${worker_num}" "claude ${WORKER_ARGS:-\"--dangerously-skip-permissions\"}" C-m
     sleep 3
 
     echo ""
