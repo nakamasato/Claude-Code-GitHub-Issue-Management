@@ -154,9 +154,8 @@ setup_worker_environment() {
     echo "=== Worker${worker_num} 環境セットアップ開始 ==="
     echo "Issue #${issue_number}: ${issue_title}"
 
-    # 1. exit from claude if in a session
-
-    echo "=== Workers${worker_num} exit Claude if in session ==="
+    # 1. Claude安全終了処理
+    echo "=== Worker${worker_num} Claude安全終了処理 ==="
     safe_exit_worker_claude "$worker_num"
 
     # 2. worktreeディレクトリの作成
@@ -190,8 +189,9 @@ setup_worker_environment() {
         echo "⚠️  警告: worktreeが期待通りに分離されていません"
     fi
 
-    # 4. workdirへ移動
-    echo "worktree/issue-${issue_number}ディレクトリでClaude Codeを再起動します"
+    # 4. worktreeディレクトリでClaude Code起動
+    echo "=== Worker${worker_num} Claude起動処理 ==="
+    echo "worktree/issue-${issue_number}ディレクトリでClaude Codeを起動します"
     echo ""
     echo "【重要な安全対策】"
     echo "- workerは ${PWD}/${worktree_path} ディレクトリから外に出ることを禁止"
@@ -200,16 +200,15 @@ setup_worker_environment() {
     echo ""
     echo "【自動実行手順】"
 
-    echo "✅ worker${worker_num}はシェルモード: $current_command"
-    echo "2. worktreeディレクトリに移動"
+    echo "1. worktreeディレクトリに移動"
     tmux send-keys -t "multiagent:0.${worker_num}" "cd ${PWD}/${worktree_path}" C-m
 
-    echo "3. worktreeディレクトリでClaude Code起動"
+    echo "2. worktreeディレクトリでClaude Code起動"
     tmux send-keys -t "multiagent:0.${worker_num}" "claude --dangerously-skip-permissions" C-m
     sleep 3
 
     echo ""
-    echo "5. worker${worker_num}セッションが起動したら、以下のメッセージを送信:"
+    echo "3. worker${worker_num}セッションが起動したら、以下のメッセージを送信:"
     echo ""
     echo "=== Worker${worker_num}用メッセージ ==="
     echo "あなたはworker${worker_num}です。"
@@ -245,7 +244,9 @@ setup_worker_environment() {
     echo "上記のworker${worker_num}セッション起動が完了したら、Enterを押してください..."
     read -r
 
-    # Worker状況ファイル作成
+    # 5. Worker状況ファイル作成
+    echo "5. Worker状況ファイル作成"
+    mkdir -p ./tmp/worker-status
     echo "Issue #${issue_number}: ${issue_title}" > ./tmp/worker-status/worker${worker_num}_busy.txt
 
     echo "=== Worker${worker_num} セットアップ完了 ==="
