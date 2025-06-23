@@ -186,9 +186,16 @@ setup_worker_environment() {
     echo "=== Worker${worker_num} 環境セットアップ開始 ==="
     echo "Issue #${issue_number}: ${issue_title}"
 
-    # 1. Claude安全終了処理
-    echo "=== Worker${worker_num} Claude安全終了処理 ==="
-    safe_exit_worker_claude "$worker_num"
+    # 1. Worker Claude状態確認（終了させずに確認のみ）
+    echo "=== Worker${worker_num} Claude状態確認 ==="
+    if check_worker_claude_status "$worker_num"; then
+        echo "✅ worker${worker_num}は既にClaude実行中です（継続使用）"
+        # 既存のセッションがある場合、現在のworktreeディレクトリから移動させる
+        echo "既存のClaude セッションに新しいissue作業を開始するよう指示します"
+    else
+        echo "ℹ️  worker${worker_num}はシェルモードまたは非アクティブです"
+        echo "新しいClaude セッションを起動します"
+    fi
 
     # 2. worktreeディレクトリの作成
     local worktree_path="worktree/issue-${issue_number}"
@@ -221,67 +228,117 @@ setup_worker_environment() {
         echo "⚠️  警告: worktreeが期待通りに分離されていません"
     fi
 
-    # 4. worktreeディレクトリでClaude Code起動
-    echo "=== Worker${worker_num} Claude起動処理 ==="
-    echo "worktree/issue-${issue_number}ディレクトリでClaude Codeを起動します"
+    # 4. Worker Claude セッション管理（新規起動または既存セッション継続）
+    echo "=== Worker${worker_num} Claude セッション管理 ==="
+    echo "worktree/issue-${issue_number}ディレクトリでの作業を開始します"
     echo ""
     echo "【重要な安全対策】"
     echo "- workerは ${PWD}/${worktree_path} ディレクトリから外に出ることを禁止"
     echo "- mainブランチの直接編集を禁止"
     echo "- 作業はissue-${issue_number}ブランチでのみ実行"
     echo ""
-    echo "【自動実行手順】"
 
-    echo "1. worktreeディレクトリに移動"
-    tmux send-keys -t "multiagent:0.${worker_num}" "cd ${PWD}/${worktree_path}" C-m
+    if check_worker_claude_status "$worker_num"; then
+        echo "【既存セッション継続手順】"
+        echo "1. 新しいworktreeディレクトリに移動（既存のClaude セッション内で）"
+        tmux send-keys -t "multiagent:0.${worker_num}" "cd ${PWD}/${worktree_path}" C-m
+        echo "2. 既存のClaude セッションに新しいissueの作業指示を送信"
+    else
+        echo "【新規セッション起動手順】"
+        echo "1. worktreeディレクトリに移動"
+        tmux send-keys -t "multiagent:0.${worker_num}" "cd ${PWD}/${worktree_path}" C-m
+        echo "2. worktreeディレクトリでClaude Code起動"
+        tmux send-keys -t "multiagent:0.${worker_num}" "claude ${WORKER_ARGS:-\"--dangerously-skip-permissions\"}" C-m
+        sleep 3
+    fi
 
-    echo "2. worktreeディレクトリでClaude Code起動"
-    tmux send-keys -t "multiagent:0.${worker_num}" "claude ${WORKER_ARGS:-\"--dangerously-skip-permissions\"}" C-m
-    sleep 3
+    echo ""
+    echo "3. worker${worker_num}セッションに新しいissue作業の指示を送信:"
+    echo ""
 
-    echo ""
-    echo "3. worker${worker_num}セッションが起動したら、以下のメッセージを送信:"
-    echo ""
-    echo "=== Worker${worker_num}用メッセージ ==="
-    echo "あなたはworker${worker_num}です。"
-    echo ""
-    echo "【GitHub Issue Assignment】"
-    echo "Issue #${issue_number}: ${issue_title}"
-    echo ""
-    echo "現在のディレクトリは既にissue-${issue_number}ブランチのworktree環境です。"
-    echo ""
-    echo "以下の手順で作業を開始してください："
-    echo ""
-    echo "1. Issue詳細確認"
-    echo "   \`\`\`bash"
-    echo "   gh issue view ${issue_number}"
-    echo "   \`\`\`"
-    echo ""
-    echo "2. 作業環境確認"
-    echo "   \`\`\`bash"
-    echo "   pwd              # 現在のディレクトリ確認"
-    echo "   git branch       # 現在のブランチ確認"
-    echo "   git status       # 作業ツリーの状態確認"
-    echo "   \`\`\`"
-    echo ""
-    echo "3. タスクリスト作成"
-    echo "   - Issue内容を分析し、やることリストを作成"
-    echo "   - 実装手順を明確化"
-    echo "   - 必要な技術調査を実施"
-    echo ""
-    echo "作業準備が完了したら、Issue解決に向けて実装を開始してください。"
-    echo "進捗や質問があれば随時報告してください。"
-    echo "=========================="
-    echo ""
-    echo "上記のworker${worker_num}セッション起動が完了したら、Enterを押してください..."
-    read -r
+    # Worker セッションの状態に応じてメッセージ送信
+    if check_worker_claude_status "$worker_num"; then
+        echo "【既存のpersistent workerセッションに指示送信中...】"
+        ./claude/agent-send.sh worker${worker_num} "新しいIssue割り当てを受信しました。
 
-    # 5. Worker状況ファイル作成
+【GitHub Issue Assignment】
+Issue #${issue_number}: ${issue_title}
+
+【重要】あなたは persistent worker${worker_num} です。
+前のissueの作業は一旦中断し、この新しいissueに集中してください。
+
+現在のディレクトリは既にissue-${issue_number}ブランチのworktree環境に設定されています。
+
+以下の手順で作業を開始してください：
+
+1. Issue詳細確認
+   \`\`\`bash
+   gh issue view ${issue_number}
+   \`\`\`
+
+2. 作業環境確認
+   \`\`\`bash
+   pwd              # 現在のディレクトリ確認
+   git branch       # 現在のブランチ確認
+   git status       # 作業ツリーの状態確認
+   \`\`\`
+
+3. タスクリスト作成
+   - Issue内容を分析し、やることリストを作成
+   - 実装手順を明確化
+   - 必要な技術調査を実施
+
+作業準備が完了したら、Issue解決に向けて実装を開始してください。
+進捗や質問があれば随時報告してください。"
+
+        echo "✅ 既存セッションに新しいissue指示を送信しました"
+    else
+        echo "【新規セッション用の手動メッセージ】"
+        echo "=== Worker${worker_num}用メッセージ ==="
+        echo "あなたはworker${worker_num}です。"
+        echo ""
+        echo "【GitHub Issue Assignment】"
+        echo "Issue #${issue_number}: ${issue_title}"
+        echo ""
+        echo "現在のディレクトリは既にissue-${issue_number}ブランチのworktree環境です。"
+        echo ""
+        echo "以下の手順で作業を開始してください："
+        echo ""
+        echo "1. Issue詳細確認"
+        echo "   \`\`\`bash"
+        echo "   gh issue view ${issue_number}"
+        echo "   \`\`\`"
+        echo ""
+        echo "2. 作業環境確認"
+        echo "   \`\`\`bash"
+        echo "   pwd              # 現在のディレクトリ確認"
+        echo "   git branch       # 現在のブランチ確認"
+        echo "   git status       # 作業ツリーの状態確認"
+        echo "   \`\`\`"
+        echo ""
+        echo "3. タスクリスト作成"
+        echo "   - Issue内容を分析し、やることリストを作成"
+        echo "   - 実装手順を明確化"
+        echo "   - 必要な技術調査を実施"
+        echo ""
+        echo "作業準備が完了したら、Issue解決に向けて実装を開始してください。"
+        echo "進捗や質問があれば随時報告してください。"
+        echo "=========================="
+        echo ""
+        echo "上記のworker${worker_num}セッション起動が完了したら、Enterを押してください..."
+        read -r
+    fi
+
+    # 5. Worker状況ファイル作成（persistent session tracking対応）
     echo "5. Worker状況ファイル作成"
     mkdir -p ./tmp/worker-status
     echo "Issue #${issue_number}: ${issue_title}" > ./tmp/worker-status/worker${worker_num}_busy.txt
 
-    echo "=== Worker${worker_num} セットアップ完了 ==="
+    # Persistent session tracking用の追加ファイル
+    echo "${issue_number}" > ./tmp/worker-status/worker${worker_num}_persistent_issue.txt
+    echo "$(date): Started persistent session for Issue #${issue_number}" >> ./tmp/worker-status/worker${worker_num}_session_log.txt
+
+    echo "=== Worker${worker_num} セットアップ完了（persistent session対応） ==="
 }
 ```
 
